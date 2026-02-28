@@ -1,898 +1,1530 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MarocCalc Pro — Risk-Adjusted Pricing Engine</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <title>ربحي — حاسبة الربح الذكية للتجار المغاربة</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Cairo + Playfair -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     :root {
-      --bg: #060810;
-      --surface: rgba(255,255,255,0.04);
-      --surface-hover: rgba(255,255,255,0.07);
-      --border: rgba(255,255,255,0.08);
-      --border-glow: rgba(251,191,36,0.3);
-      --gold: #FBB924;
-      --gold-dim: rgba(251,185,36,0.15);
-      --green: #10E898;
-      --green-dim: rgba(16,232,152,0.12);
-      --red: #FF4D6D;
-      --red-dim: rgba(255,77,109,0.12);
-      --blue: #38BDF8;
-      --text: #E8EAF0;
-      --muted: #6B7280;
-      --radius: 16px;
+      --gold: #f5c842;
+      --gold-dim: #c9a227;
+      --teal: #00c9b1;
+      --teal-dim: #00a090;
+      --danger: #ff4d6d;
+      --bg-deep: #080c14;
+      --bg-card: rgba(15, 22, 40, 0.75);
+      --border-glass: rgba(255,255,255,0.07);
+      --text-muted: #8899b0;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Mono', monospace;
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+      background: var(--bg-deep);
+      color: #e8f0ff;
       min-height: 100vh;
       overflow-x: hidden;
     }
 
-    /* Ambient background */
-    body::before {
-      content: '';
+    /* ─── Background mesh ─── */
+    .bg-mesh {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background:
-        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(251,185,36,0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(16,232,152,0.05) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 60% at 50% 50%, rgba(56,189,248,0.03) 0%, transparent 70%);
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0,201,177,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(245,200,66,0.10) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 60% 30%, rgba(110,60,220,0.08) 0%, transparent 50%),
+        var(--bg-deep);
     }
 
-    /* Grid overlay */
-    body::after {
-      content: '';
-      position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-      background-size: 40px 40px;
-    }
-
-    .app { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
-
-    /* HEADER */
-    header {
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: 12px; padding: 28px 0 40px;
-    }
-    .logo {
-      display: flex; align-items: center; gap: 12px;
-    }
-    .logo-mark {
-      width: 44px; height: 44px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--gold) 0%, #FF8C00 100%);
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: #000;
-      box-shadow: 0 0 24px rgba(251,185,36,0.4);
-    }
-    .logo-text { font-family: 'Syne', sans-serif; }
-    .logo-text h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-    .logo-text p { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
-    .header-badge {
-      background: var(--gold-dim); border: 1px solid var(--gold);
-      color: var(--gold); padding: 5px 14px; border-radius: 100px;
-      font-size: 11px; font-weight: 500; letter-spacing: 0.5px;
-    }
-
-    /* GLASS CARD */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+    /* ─── Glass card ─── */
+    .glass {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      padding: 24px;
-      transition: border-color 0.2s;
     }
-    .card:hover { border-color: rgba(255,255,255,0.12); }
-    .card-title {
-      font-family: 'Syne', sans-serif; font-weight: 700;
-      font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--muted); margin-bottom: 20px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .card-title span { color: var(--gold); font-size: 16px; }
 
-    /* LAYOUT GRID */
-    .main-grid {
-      display: grid;
-      grid-template-columns: 380px 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-    .right-col { display: flex; flex-direction: column; gap: 20px; }
+    /* ─── Glow effects ─── */
+    .glow-teal { box-shadow: 0 0 30px rgba(0,201,177,0.25), 0 0 60px rgba(0,201,177,0.1); }
+    .glow-gold  { box-shadow: 0 0 30px rgba(245,200,66,0.25), 0 0 60px rgba(245,200,66,0.1); }
+    .text-glow-gold { text-shadow: 0 0 20px rgba(245,200,66,0.6); }
 
-    /* INPUTS */
-    .input-group { display: flex; flex-direction: column; gap: 14px; }
-    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* ─── Gradient text ─── */
+    .grad-text {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--teal) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
 
-    .field { display: flex; flex-direction: column; gap: 6px; }
-    .field label {
-      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--muted); font-weight: 500;
+    /* ─── Buttons ─── */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--teal) 0%, #00a090 100%);
+      color: #fff;
+      font-weight: 700;
+      border-radius: 12px;
+      padding: 12px 28px;
+      font-size: 16px;
+      letter-spacing: 0.3px;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
     }
-    .field-wrap { position: relative; }
-    .field-wrap input, .field-wrap select {
-      width: 100%; background: rgba(0,0,0,0.3);
-      border: 1px solid var(--border); border-radius: 10px;
-      color: var(--text); font-family: 'DM Mono', monospace;
-      font-size: 14px; padding: 11px 40px 11px 14px;
-      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-      appearance: none;
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.1);
+      opacity: 0;
+      transition: opacity 0.3s;
     }
-    .field-wrap select { padding-right: 14px; cursor: pointer; }
-    .field-wrap input:focus, .field-wrap select:focus {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(251,185,36,0.1);
+    .btn-primary:hover::after { opacity: 1; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,201,177,0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%);
+      color: #080c14;
+      font-weight: 800;
+      border-radius: 12px;
+      padding: 12px 28px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
     }
-    .field-unit {
-      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      font-size: 11px; color: var(--muted); pointer-events: none;
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(245,200,66,0.4); }
+
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border-glass);
+      color: #e8f0ff;
+      border-radius: 12px;
+      padding: 11px 24px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
     }
+    .btn-outline:hover { border-color: var(--teal); color: var(--teal); }
+
+    /* ─── Inputs ─── */
+    .input-field {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 11px 16px;
+      color: #e8f0ff;
+      font-family: 'Cairo', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      direction: rtl;
+    }
+    .input-field:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(0,201,177,0.15);
+    }
+    .input-field::placeholder { color: var(--text-muted); }
+
+    /* ─── Range slider ─── */
     input[type=range] {
-      width: 100%; height: 4px; appearance: none;
-      background: var(--border); border-radius: 4px; outline: none;
-      cursor: pointer; padding: 0;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      outline: none;
     }
     input[type=range]::-webkit-slider-thumb {
-      appearance: none; width: 16px; height: 16px; border-radius: 50%;
-      background: var(--gold); cursor: pointer;
-      box-shadow: 0 0 8px rgba(251,185,36,0.5);
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--teal);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0,201,177,0.5);
     }
-    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
 
-    /* CALC BUTTON */
-    .calc-btn {
-      width: 100%; padding: 14px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--gold) 0%, #FF8C00 100%);
-      color: #000; font-family: 'Syne', sans-serif; font-weight: 800;
-      font-size: 14px; letter-spacing: 0.5px; border: none; cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-      box-shadow: 0 4px 24px rgba(251,185,36,0.3);
-      margin-top: 4px;
+    /* ─── Tabs ─── */
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
     }
-    .calc-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(251,185,36,0.45); }
-    .calc-btn:active { transform: translateY(0); }
+    .tab-btn.active {
+      background: rgba(0,201,177,0.15);
+      border-color: var(--teal);
+      color: var(--teal);
+      font-weight: 600;
+    }
 
-    /* METRICS */
-    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .metric {
-      background: rgba(0,0,0,0.25); border: 1px solid var(--border);
-      border-radius: 12px; padding: 16px;
-      transition: border-color 0.3s, background 0.3s;
+    /* ─── Result cards ─── */
+    .result-card {
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
     }
-    .metric.positive { border-color: rgba(16,232,152,0.3); background: var(--green-dim); }
-    .metric.negative { border-color: rgba(255,77,109,0.3); background: var(--red-dim); }
-    .metric.warning { border-color: rgba(251,185,36,0.3); background: var(--gold-dim); }
-    .metric-label { font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
-    .metric-value {
-      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px;
-      line-height: 1;
-    }
-    .metric-value.green { color: var(--green); }
-    .metric-value.red { color: var(--red); }
-    .metric-value.gold { color: var(--gold); }
-    .metric-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
-
-    /* BREAKEVEN TABLE */
-    .be-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .be-table th {
-      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
-      color: var(--muted); padding: 8px 0; text-align: left;
-      border-bottom: 1px solid var(--border);
-    }
-    .be-table td { padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-    .be-table tr:last-child td { border-bottom: none; }
-    .be-table .val { font-family: 'Syne', sans-serif; font-weight: 600; text-align: right; }
-    .be-table .divider { color: var(--border); }
-
-    /* SENSITIVITY */
-    .sensitivity-row {
-      display: flex; align-items: center; justify-content: space-between;
-      background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px 16px;
-      border: 1px solid var(--border); margin-bottom: 8px;
-    }
-    .sensitivity-label { font-size: 11px; color: var(--muted); }
-    .sensitivity-delta { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
-
-    /* AI ADVICE */
-    .ai-box {
-      border-radius: 12px; padding: 18px;
-      border: 1px solid;
-      position: relative; overflow: hidden;
-    }
-    .ai-box::before {
+    .result-card::before {
       content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      position: absolute;
+      inset: 0;
+      opacity: 0.07;
+      border-radius: 16px;
     }
-    .ai-box.good { border-color: rgba(16,232,152,0.25); background: rgba(16,232,152,0.06); }
-    .ai-box.good::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
-    .ai-box.warn { border-color: rgba(251,185,36,0.25); background: rgba(251,185,36,0.06); }
-    .ai-box.warn::before { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
-    .ai-box.bad { border-color: rgba(255,77,109,0.25); background: rgba(255,77,109,0.06); }
-    .ai-box.bad::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
-    .ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .ai-icon { font-size: 18px; }
-    .ai-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
-    .ai-body { font-size: 12px; line-height: 1.7; color: var(--text); }
-    .ai-tips { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-    .ai-tip { font-size: 11px; color: var(--muted); padding-left: 14px; position: relative; }
-    .ai-tip::before { content: '→'; position: absolute; left: 0; color: var(--gold); }
+    .result-card.profit::before  { background: var(--teal); }
+    .result-card.loss::before    { background: var(--danger); }
+    .result-card.neutral::before { background: var(--gold); }
 
-    /* CHART */
-    .chart-wrap { position: relative; height: 220px; }
-
-    /* PRICE SCENARIOS */
-    .scenario-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-    .scenario {
-      background: rgba(0,0,0,0.25); border: 1px solid var(--border);
-      border-radius: 10px; padding: 12px; text-align: center;
-      cursor: pointer; transition: all 0.2s;
+    /* ─── Modal ─── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
     }
-    .scenario:hover { border-color: var(--gold); background: var(--gold-dim); }
-    .scenario.active { border-color: var(--gold); background: var(--gold-dim); }
-    .scenario-price { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: var(--gold); }
-    .scenario-margin { font-size: 10px; color: var(--muted); margin-top: 3px; }
-    .scenario-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
-
-    /* PLACEHOLDER STATE */
-    .placeholder {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 40px 20px; text-align: center; gap: 12px;
-      opacity: 0.4;
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      width: 440px; max-width: 95vw;
+      transform: translateY(30px) scale(0.97);
+      transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), opacity 0.3s;
+      opacity: 0;
     }
-    .placeholder-icon { font-size: 36px; }
-    .placeholder p { font-size: 12px; color: var(--muted); max-width: 200px; line-height: 1.6; }
+    .modal-overlay.open .modal-box { transform: translateY(0) scale(1); opacity: 1; }
 
-    /* DIVIDER */
-    .divider {
-      height: 1px; background: var(--border); margin: 16px 0;
+    /* ─── AI bubble ─── */
+    .ai-bubble {
+      background: rgba(0,201,177,0.08);
+      border: 1px solid rgba(0,201,177,0.2);
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      white-space: pre-wrap;
+      line-height: 1.9;
+    }
+    .ai-bubble::before {
+      content: '🤖';
+      position: absolute;
+      top: -14px; right: 20px;
+      font-size: 22px;
     }
 
-    /* SECTION LABEL */
-    .section-sep {
-      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-      color: var(--muted); display: flex; align-items: center; gap: 10px; margin: 8px 0;
-    }
-    .section-sep::before, .section-sep::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-
-    /* TOAST */
-    .toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-      background: var(--green); color: #000; padding: 12px 20px;
-      border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700;
-      font-size: 13px; transform: translateY(80px); opacity: 0;
-      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .toast.show { transform: translateY(0); opacity: 1; }
-
-    /* RESPONSIVE */
-    @media (max-width: 900px) {
-      .main-grid { grid-template-columns: 1fr; }
-      .metrics-grid { grid-template-columns: repeat(2,1fr); }
-    }
-    @media (max-width: 520px) {
-      .input-row { grid-template-columns: 1fr; }
-      .metrics-grid { grid-template-columns: 1fr 1fr; }
-      .scenario-grid { grid-template-columns: 1fr; }
+    /* ─── Token badge ─── */
+    .token-badge {
+      background: rgba(245,200,66,0.15);
+      border: 1px solid rgba(245,200,66,0.35);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      color: var(--gold);
+      font-weight: 600;
     }
 
-    /* ANIMATION */
+    /* ─── Navbar ─── */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(8,12,20,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    /* ─── Hero ─── */
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,201,177,0.12);
+      border: 1px solid rgba(0,201,177,0.3);
+      border-radius: 30px;
+      padding: 6px 18px;
+      font-size: 13px; color: var(--teal);
+      margin-bottom: 24px;
+    }
+
+    /* ─── Stat counter ─── */
+    .stat-item { text-align: center; }
+    .stat-num { font-size: 2.5rem; font-weight: 900; line-height: 1; }
+    .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── Feature card ─── */
+    .feature-card {
+      border-radius: 20px;
+      padding: 28px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    /* ─── Animations ─── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity:0; transform: translateY(30px); }
+      to   { opacity:1; transform: translateY(0); }
     }
-    .animate { animation: fadeUp 0.4s ease forwards; }
+    @keyframes pulse-ring {
+      0%,100% { transform: scale(1); opacity: 0.6; }
+      50%      { transform: scale(1.05); opacity: 1; }
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-12px); }
+    }
+    @keyframes spin-slow { to { transform: rotate(360deg); } }
+    .fade-up    { animation: fadeUp 0.7s ease forwards; }
+    .float-anim { animation: float 4s ease-in-out infinite; }
 
-    /* NUMBER INPUT spinner hide */
-    input[type=number]::-webkit-outer-spin-button,
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+
+    /* ─── Typing cursor ─── */
+    .typing::after {
+      content: '|';
+      animation: blink 0.8s step-end infinite;
+      color: var(--teal);
+    }
+    @keyframes blink { 50% { opacity:0; } }
+
+    /* ─── Toast ─── */
+    #toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: #1a2540;
+      border: 1px solid var(--border-glass);
+      border-radius: 12px; padding: 14px 28px;
+      font-size: 14px; z-index: 9999;
+      transition: transform 0.4s cubic-bezier(.34,1.56,.64,1);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ─── Section divider ─── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      margin: 0 auto;
+    }
+
+    /* table style */
+    .breakdown-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .breakdown-table th { color: var(--text-muted); font-weight: 600; padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--border-glass); }
+    .breakdown-table td { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .breakdown-table tr:last-child td { border-bottom: none; }
+
+    /* referral box */
+    .referral-box {
+      background: rgba(245,200,66,0.06);
+      border: 1px dashed rgba(245,200,66,0.3);
+      border-radius: 14px;
+      padding: 16px 20px;
+    }
+    .referral-link {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      color: var(--teal);
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    /* loading dots */
+    .loading-dots span {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--teal);
+      margin: 0 3px;
+      animation: bounce 1.2s infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100% { transform: scale(0.6); opacity:0.4; } 40% { transform: scale(1); opacity:1; } }
+
+    /* profit meter */
+    .profit-meter { height: 10px; background: rgba(255,255,255,0.07); border-radius: 5px; overflow: hidden; }
+    .profit-meter-fill { height: 100%; border-radius: 5px; transition: width 1s ease; }
   </style>
-</head>
-<body>
-<div class="app">
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">
-      <div class="logo-mark">M</div>
-      <div class="logo-text">
-        <h1>MarocCalc Pro</h1>
-        <p>RISK-ADJUSTED PRICING ENGINE · MOROCCO</p>
-      </div>
-    </div>
-    <div class="header-badge">Auto-Entrepreneur Ready</div>
-  </header>
-
-  <div class="main-grid">
-
-    <!-- LEFT: INPUTS -->
-    <div class="card" style="position:sticky;top:20px;">
-      <div class="card-title"><span>⚙</span> Product Parameters</div>
-
-      <div class="input-group">
-        <div class="section-sep">Cost Structure</div>
-
-        <div class="input-row">
-          <div class="field">
-            <label>Product Cost</label>
-            <div class="field-wrap">
-              <input type="number" id="cost" value="80" min="0" step="1" />
-              <span class="field-unit">MAD</span>
-            </div>
-          </div>
-          <div class="field">
-            <label>Selling Price</label>
-            <div class="field-wrap">
-              <input type="number" id="price" value="250" min="0" step="1" />
-              <span class="field-unit">MAD</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="input-row">
-          <div class="field">
-            <label>Shipping Fee</label>
-            <div class="field-wrap">
-              <input type="number" id="shipping" value="25" min="0" step="1" />
-              <span class="field-unit">MAD</span>
-            </div>
-          </div>
-          <div class="field">
-            <label>Ad Spend / Sale</label>
-            <div class="field-wrap">
-              <input type="number" id="ads" value="30" min="0" step="1" />
-              <span class="field-unit">MAD</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-sep">Risk Factors</div>
-
-        <div class="field">
-          <label>Return Rate (Livrabilité) — <span id="returnVal">20</span>%</label>
-          <input type="range" id="returnRate" min="0" max="80" value="20" step="1" oninput="document.getElementById('returnVal').textContent=this.value; calculate();" />
-          <div class="range-labels"><span>0% Perfect</span><span>80% Critical</span></div>
-        </div>
-
-        <div class="field">
-          <label>COD Return Cost</label>
-          <div class="field-wrap">
-            <input type="number" id="returnCost" value="15" min="0" step="1" />
-            <span class="field-unit">MAD</span>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Tax Regime</label>
-          <div class="field-wrap">
-            <select id="taxRate">
-              <option value="0.01">Auto-Entrepreneur — 1% (Trade/Industry)</option>
-              <option value="0.04">Auto-Entrepreneur — 4% (Services)</option>
-              <option value="0.20">VAT — 20%</option>
-              <option value="0">No Tax</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Monthly Volume (units)</label>
-          <div class="field-wrap">
-            <input type="number" id="volume" value="100" min="1" step="1" />
-            <span class="field-unit">pcs</span>
-          </div>
-        </div>
-
-        <button class="calc-btn" onclick="calculate()">⚡ Calculate Risk-Adjusted Profit</button>
-      </div>
-    </div>
-
-    <!-- RIGHT: RESULTS -->
-    <div class="right-col">
-
-      <!-- METRICS -->
-      <div class="card" id="metricsCard">
-        <div class="card-title"><span>📊</span> Key Metrics</div>
-        <div id="metricsContent">
-          <div class="placeholder">
-            <div class="placeholder-icon">🔢</div>
-            <p>Fill in the parameters and click Calculate to see your risk-adjusted metrics.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- CHART -->
-      <div class="card">
-        <div class="card-title"><span>📈</span> Price vs Profit Analysis</div>
-        <div class="chart-wrap">
-          <canvas id="profitChart"></canvas>
-        </div>
-      </div>
-
-      <!-- BREAKEVEN + SENSITIVITY (2 cols) -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" id="analysisGrid">
-        <div class="card">
-          <div class="card-title"><span>⚖</span> Break-Even Matrix</div>
-          <div id="breakevenContent">
-            <div class="placeholder" style="padding:20px 10px;">
-              <p>Calculate first to see break-even data.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title"><span>∂</span> Sensitivity Analysis</div>
-          <div id="sensitivityContent">
-            <div class="placeholder" style="padding:20px 10px;">
-              <p>Partial derivative analysis will appear here.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PRICE SCENARIOS -->
-      <div class="card">
-        <div class="card-title"><span>🎯</span> Price Scenarios</div>
-        <div class="scenario-grid" id="scenariosContent">
-          <div class="placeholder" style="grid-column:1/-1;padding:20px 10px;">
-            <p>Scenarios will be generated after calculation.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- AI ADVICE -->
-      <div id="aiCard">
-        <div class="placeholder" style="opacity:0.3;padding:20px;">
-          <div class="placeholder-icon">🤖</div>
-          <p>AI strategic advice will appear after calculation.</p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast">✓ Calculation complete</div>
-
-<script>
-/* ═══════════════════════════════════════════════
-   MATH ENGINE — Risk-Adjusted Pricing
-   Uses linear algebra & partial derivatives
-═══════════════════════════════════════════════ */
-
-let chartInstance = null;
-
-function calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
-  // Risk adjustment vectors (Linear Algebra approach)
-  // Revenue vector adjusted for return rate
-  const R = returnRate / 100;  // return probability scalar
-
-  // Expected revenue per order dispatched
-  // = price * (1 - R) + 0 * R  (returned orders get 0 revenue)
-  const expectedRevenue = price * (1 - R);
-
-  // Cost vector (always paid per dispatch)
-  // C = [cost, shipping, ads, returnHandling, tax]
-  const costProduct  = cost;
-  const costShipping = shipping;            // paid on dispatch always
-  const costAds      = ads;
-  const costReturn   = returnCost * R;      // expected return handling cost
-  const taxBase      = expectedRevenue;
-  const costTax      = taxBase * taxRate;
-
-  // Total cost per order dispatched (dot product of cost vector with unit vector)
-  const totalCost = costProduct + costShipping + costAds + costReturn + costTax;
-
-  // Net profit per dispatched order
-  const profitPerOrder = expectedRevenue - totalCost;
-
-  // Break-even price: solve expectedRevenue = totalCost for price
-  // price*(1-R) = cost + shipping + ads + returnCost*R + price*(1-R)*taxRate
-  // price*(1-R) - price*(1-R)*taxRate = cost + shipping + ads + returnCost*R
-  // price*(1-R)*(1 - taxRate) = fixedCosts
-  const fixedCosts = cost + shipping + ads + returnCost * R;
-  const breakEvenPrice = fixedCosts / ((1 - R) * (1 - taxRate));
-
-  // Monthly figures
-  const dispatchVolume = volume;
-  const deliveredVolume = volume * (1 - R);
-  const monthlyRevenue = deliveredVolume * price;
-  const monthlyProfit = profitPerOrder * volume;
-  const monthlyCosts = totalCost * volume;
-
-  // ROI
-  const roi = totalCost > 0 ? (profitPerOrder / (cost + shipping + ads)) * 100 : 0;
-
-  // Margin
-  const margin = expectedRevenue > 0 ? (profitPerOrder / expectedRevenue) * 100 : 0;
-
-  return {
-    profitPerOrder, expectedRevenue, totalCost,
-    breakEvenPrice, monthlyRevenue, monthlyProfit, monthlyCosts,
-    deliveredVolume, roi, margin,
-    costBreakdown: { costProduct, costShipping, costAds, costReturn, costTax }
-  };
-}
-
-/* Partial Derivative (Sensitivity Analysis)
-   ∂Profit/∂R = -price - returnCost + taxRate*price = -price*(1-taxRate) - returnCost
-   This tells us: for a 1% increase in return rate, profit changes by this amount (per order)
-*/
-function sensitivityAnalysis(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
-  const R = returnRate / 100;
-  const delta = 0.05; // 5% increase in returns
-  const base = calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  const perturbed = calcCore(price, cost, shipping, ads, Math.min(returnRate + 5, 80), returnCost, taxRate, volume);
-
-  // Partial derivative via finite difference
-  const dProfit_dR = (perturbed.profitPerOrder - base.profitPerOrder) / delta;
-  const monthlyImpact = (perturbed.monthlyProfit - base.monthlyProfit);
-  const priceImpact_dP = (price * 0.05) / ((1 - R) * (1 - taxRate));
-
-  // Elasticity: how sensitive is profit to a 5% price increase
-  const pricePlus5 = calcCore(price * 1.05, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  const priceElasticity = pricePlus5.monthlyProfit - base.monthlyProfit;
-
-  // Ads sensitivity
-  const adsPlus10 = calcCore(price, cost, shipping, ads * 1.10, returnRate, returnCost, taxRate, volume);
-  const adsSensitivity = adsPlus10.monthlyProfit - base.monthlyProfit;
-
-  return { dProfit_dR, monthlyImpact, priceElasticity, adsSensitivity, perturbed };
-}
-
-/* ═══════════════════════════════════════════════
-   RULE-BASED AI ADVISOR
-═══════════════════════════════════════════════ */
-function aiAdvisor(data, inputs) {
-  const { margin, profitPerOrder, breakEvenPrice, roi } = data;
-  const { returnRate, price } = inputs;
-  const priceToBreakEven = ((price - breakEvenPrice) / breakEvenPrice * 100).toFixed(1);
-
-  let status, icon, title, body, tips = [];
-
-  if (margin >= 35) {
-    status = 'good'; icon = '🚀'; title = 'Excellent Margin — Scale Aggressively';
-    body = `Your ${margin.toFixed(1)}% net margin is strong for Moroccan COD e-commerce (industry benchmark: 20-30%). You have ${priceToBreakEven}% buffer above break-even. This product is ready for aggressive scaling.`;
-    tips = [
-      'Increase ad spend by 30-40% — your CAC has room to grow.',
-      'Test higher price points (+10%) — customers with this margin rarely resist.',
-      'Prioritize Casablanca, Rabat, and Marrakech — highest delivery success zones.',
-      'Consider bundling to increase AOV and dilute return rate impact.',
-    ];
-  } else if (margin >= 20) {
-    status = 'warn'; icon = '⚡'; title = 'Viable — Optimize Before Scaling';
-    body = `Your ${margin.toFixed(1)}% margin is functional but leaves little room for error. With a ${returnRate}% return rate, one bad week of returns could turn profitable months negative.`;
-    tips = [
-      `Break-even is at ${breakEvenPrice.toFixed(0)} MAD — you're ${priceToBreakEven}% above it. Don't discount.`,
-      'Negotiate a 5-10 MAD reduction in shipping with your carrier (Amana, Jumia Express, etc.).',
-      returnRate > 25 ? 'Your return rate is HIGH — add product video, size guide, or live chat to reduce it.' : 'Return rate is acceptable — focus on reducing ad spend per sale.',
-      'Cap monthly ad budget until you optimize the return rate below 20%.',
-    ];
-  } else if (margin >= 5) {
-    status = 'warn'; icon = '⚠️'; title = 'Danger Zone — Restructure Required';
-    body = `${margin.toFixed(1)}% margin is dangerously thin. A slight increase in returns, shipping costs, or ad CPM will make this product loss-making. Do NOT scale without restructuring.`;
-    tips = [
-      `Raise the price to at least ${(breakEvenPrice * 1.25).toFixed(0)} MAD for a safe 25% margin.`,
-      `Return rate of ${returnRate}% is costing you ${(data.costBreakdown.costReturn).toFixed(1)} MAD/order — critical to fix.`,
-      'Test a higher price point immediately before spending more on ads.',
-      'Consider if this product works better on Jumia/Glovo (marketplace, lower acquisition cost).',
-    ];
-  } else {
-    status = 'bad'; icon = '🔴'; title = 'Loss-Making — Stop & Restructure';
-    body = `This product is currently unprofitable at these parameters. Every order dispatched loses you ${Math.abs(profitPerOrder).toFixed(1)} MAD. Scaling will only amplify losses.`;
-    tips = [
-      `Minimum break-even price is ${breakEvenPrice.toFixed(0)} MAD — current price is ${Math.round(price)} MAD (${Math.abs(priceToBreakEven)}% below break-even).`,
-      'STOP all paid advertising immediately.',
-      'Negotiate product cost down by 20%+ or find an alternative supplier.',
-      `Return rate at ${returnRate}% is adding ${(data.costBreakdown.costReturn * 100 / (data.totalCost || 1)).toFixed(0)}% to your cost structure — test new creatives.`,
-    ];
-  }
-
-  // Add Moroccan-specific insights
-  if (returnRate > 40) tips.push('⚡ Livrabilité below 60% is considered critical in Moroccan COD market — verify targeting quality.');
-  if (inputs.price / inputs.cost < 2) tips.push('Price-to-cost ratio below 2x is very risky for COD — industry standard is 2.5x–4x.');
-
-  return { status, icon, title, body, tips };
-}
-
-/* ═══════════════════════════════════════════════
-   MAIN CALCULATE FUNCTION
-═══════════════════════════════════════════════ */
-function calculate() {
-  const price      = +document.getElementById('price').value || 0;
-  const cost       = +document.getElementById('cost').value || 0;
-  const shipping   = +document.getElementById('shipping').value || 0;
-  const ads        = +document.getElementById('ads').value || 0;
-  const returnRate = +document.getElementById('returnRate').value || 0;
-  const returnCost = +document.getElementById('returnCost').value || 0;
-  const taxRate    = +document.getElementById('taxRate').value || 0;
-  const volume     = +document.getElementById('volume').value || 100;
-
-  const data = calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  const sens = sensitivityAnalysis(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  const ai   = aiAdvisor(data, { price, cost, returnRate, volume });
-
-  renderMetrics(data);
-  renderBreakeven(data, { price, cost, shipping, ads, returnRate, returnCost, taxRate });
-  renderSensitivity(sens, data, volume);
-  renderScenarios(cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  renderAI(ai);
-  renderChart(cost, shipping, ads, returnRate, returnCost, taxRate, price);
-
-  showToast();
-}
-
-/* ═══════════════════════════════════════════════
-   RENDER FUNCTIONS
-═══════════════════════════════════════════════ */
-function renderMetrics(d) {
-  const isProfit = d.profitPerOrder > 0;
-  const marginClass = d.margin >= 30 ? 'green' : d.margin >= 15 ? 'gold' : 'red';
-  const profitClass = isProfit ? 'positive' : 'negative';
-
-  document.getElementById('metricsContent').innerHTML = `
-    <div class="metrics-grid animate">
-      <div class="metric ${isProfit ? 'positive' : 'negative'}">
-        <div class="metric-label">Net Profit / Order</div>
-        <div class="metric-value ${isProfit ? 'green' : 'red'}">${d.profitPerOrder.toFixed(2)} <small style="font-size:13px">MAD</small></div>
-        <div class="metric-sub">After returns & tax</div>
-      </div>
-      <div class="metric ${d.margin >= 20 ? 'positive' : 'negative'}">
-        <div class="metric-label">Net Margin</div>
-        <div class="metric-value ${marginClass}">${d.margin.toFixed(1)}%</div>
-        <div class="metric-sub">On delivered revenue</div>
-      </div>
-      <div class="metric warning">
-        <div class="metric-label">Break-Even Price</div>
-        <div class="metric-value gold">${d.breakEvenPrice.toFixed(0)} <small style="font-size:13px">MAD</small></div>
-        <div class="metric-sub">Min viable price</div>
-      </div>
-      <div class="metric ${d.roi >= 30 ? 'positive' : 'negative'}">
-        <div class="metric-label">ROI</div>
-        <div class="metric-value ${d.roi >= 30 ? 'green' : 'red'}">${d.roi.toFixed(1)}%</div>
-        <div class="metric-sub">Return on investment</div>
-      </div>
-      <div class="metric ${d.monthlyProfit >= 0 ? 'positive' : 'negative'}" style="grid-column:span 2">
-        <div class="metric-label">Monthly P&L (${Math.round(d.deliveredVolume)} deliveries / total dispatched)</div>
-        <div class="metric-value ${d.monthlyProfit >= 0 ? 'green' : 'red'}" style="font-size:28px">${d.monthlyProfit.toFixed(0)} MAD</div>
-        <div class="metric-sub">Revenue: ${d.monthlyRevenue.toFixed(0)} MAD — Costs: ${d.monthlyCosts.toFixed(0)} MAD</div>
-      </div>
-    </div>`;
-}
-
-function renderBreakeven(d, inp) {
-  const { cost, shipping, ads, returnRate, returnCost, taxRate } = inp;
-  const R = returnRate / 100;
-  const cb = d.costBreakdown;
-
-  document.getElementById('breakevenContent').innerHTML = `
-    <table class="be-table animate">
-      <tr><th>Component</th><th class="val">MAD</th><th class="val">%</th></tr>
-      <tr><td>Product Cost</td><td class="val">${cb.costProduct.toFixed(2)}</td><td class="val">${(cb.costProduct/d.totalCost*100).toFixed(1)}%</td></tr>
-      <tr><td>Shipping</td><td class="val">${cb.costShipping.toFixed(2)}</td><td class="val">${(cb.costShipping/d.totalCost*100).toFixed(1)}%</td></tr>
-      <tr><td>Ad Spend</td><td class="val">${cb.costAds.toFixed(2)}</td><td class="val">${(cb.costAds/d.totalCost*100).toFixed(1)}%</td></tr>
-      <tr><td>Return Risk (E)</td><td class="val" style="color:var(--red)">${cb.costReturn.toFixed(2)}</td><td class="val">${(cb.costReturn/d.totalCost*100).toFixed(1)}%</td></tr>
-      <tr><td>Tax</td><td class="val" style="color:var(--gold)">${cb.costTax.toFixed(2)}</td><td class="val">${(cb.costTax/d.totalCost*100).toFixed(1)}%</td></tr>
-      <tr style="border-top:1px solid var(--border)">
-        <td><strong>Total Cost</strong></td>
-        <td class="val"><strong>${d.totalCost.toFixed(2)}</strong></td>
-        <td class="val"><strong>100%</strong></td>
-      </tr>
-      <tr><td colspan="3"><div class="divider"></div></td></tr>
-      <tr><td>Break-Even</td><td class="val" style="color:var(--gold)">${d.breakEvenPrice.toFixed(1)}</td><td class="val">—</td></tr>
-      <tr><td>Your Price</td><td class="val" style="color:var(--green)">${inp.price.toFixed(1)}</td><td class="val">—</td></tr>
-      <tr><td>Safety Buffer</td>
-        <td class="val" style="color:${inp.price > d.breakEvenPrice?'var(--green)':'var(--red)'}">
-          ${(inp.price - d.breakEvenPrice).toFixed(1)}
-        </td>
-        <td class="val">${((inp.price - d.breakEvenPrice)/d.breakEvenPrice*100).toFixed(1)}%</td>
-      </tr>
-    </table>`;
-}
-
-function renderSensitivity(s, d, volume) {
-  const fmt = (n) => (n >= 0 ? '+' : '') + n.toFixed(2);
-  const fmtM = (n) => (n >= 0 ? '+' : '') + n.toFixed(0);
-
-  document.getElementById('sensitivityContent').innerHTML = `
-    <div class="animate">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">
-        How a 5% shock affects your business
-      </div>
-      <div class="sensitivity-row">
-        <div>
-          <div class="sensitivity-label">∂Profit/∂ReturnRate</div>
-          <div style="font-size:10px;color:var(--muted)">+5% more returns</div>
-        </div>
-        <div class="sensitivity-delta" style="color:${s.monthlyImpact<0?'var(--red)':'var(--green)'}">
-          ${fmtM(s.monthlyImpact)} MAD/mo
-        </div>
-      </div>
-      <div class="sensitivity-row">
-        <div>
-          <div class="sensitivity-label">∂Profit/∂Price</div>
-          <div style="font-size:10px;color:var(--muted)">+5% price increase</div>
-        </div>
-        <div class="sensitivity-delta" style="color:var(--green)">
-          ${fmtM(s.priceElasticity)} MAD/mo
-        </div>
-      </div>
-      <div class="sensitivity-row">
-        <div>
-          <div class="sensitivity-label">∂Profit/∂AdSpend</div>
-          <div style="font-size:10px;color:var(--muted)">+10% ad spend</div>
-        </div>
-        <div class="sensitivity-delta" style="color:var(--red)">
-          ${fmtM(s.adsSensitivity)} MAD/mo
-        </div>
-      </div>
-      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6;">
-        Grad vector: [${fmtM(s.monthlyImpact)}, ${fmtM(s.priceElasticity)}, ${fmtM(s.adsSensitivity)}]<br>
-        Steepest ascent → raise price first, then cut returns.
-      </div>
-    </div>`;
-}
-
-function renderScenarios(cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
-  const priceBase = calcCore(250, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-  const prices = [
-    { p: cost * 2.0, label: '2x Cost', color: 'var(--red)' },
-    { p: cost * 2.5, label: '2.5x Cost', color: 'var(--gold)' },
-    { p: cost * 3.0, label: '3x Cost (Rec)', color: 'var(--green)' },
-    { p: cost * 3.5, label: '3.5x Cost', color: 'var(--blue)' },
-    { p: cost * 4.0, label: '4x Premium', color: 'var(--green)' },
-    { p: +document.getElementById('price').value, label: 'Your Price', color: 'var(--gold)' },
-  ];
-
-  document.getElementById('scenariosContent').innerHTML = prices.map((s, i) => {
-    const d = calcCore(s.p, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
-    const isActive = i === 5;
-    return `
-      <div class="scenario ${isActive ? 'active' : ''}" onclick="applyScenario(${s.p.toFixed(0)})">
-        <div class="scenario-price" style="color:${d.profitPerOrder > 0 ? s.color : 'var(--red)'}">${s.p.toFixed(0)} MAD</div>
-        <div class="scenario-margin" style="color:${d.margin >= 20 ? 'var(--green)' : 'var(--red)'}">${d.margin.toFixed(1)}% margin</div>
-        <div class="scenario-label">${s.label}</div>
-      </div>`;
-  }).join('');
-}
-
-function applyScenario(price) {
-  document.getElementById('price').value = price;
-  calculate();
-}
-
-function renderAI(ai) {
-  const tipsHTML = ai.tips.map(t => `<div class="ai-tip">${t}</div>`).join('');
-  document.getElementById('aiCard').innerHTML = `
-    <div class="ai-box ${ai.status} animate">
-      <div class="ai-header">
-        <div class="ai-icon">${ai.icon}</div>
-        <div class="ai-title">${ai.title}</div>
-      </div>
-      <div class="ai-body">${ai.body}</div>
-      <div class="ai-tips">${tipsHTML}</div>
-    </div>`;
-}
-
-function renderChart(cost, shipping, ads, returnRate, returnCost, taxRate, currentPrice) {
-  const ctx = document.getElementById('profitChart').getContext('2d');
-  const minP = Math.max(cost, 50);
-  const maxP = cost * 5;
-  const step = (maxP - minP) / 60;
-  const labels = [], profits = [], margins = [];
-
-  for (let p = minP; p <= maxP; p += step) {
-    const d = calcCore(p, cost, shipping, ads, returnRate, returnCost, taxRate, 1);
-    labels.push(p.toFixed(0));
-    profits.push(+d.profitPerOrder.toFixed(2));
-    margins.push(+d.margin.toFixed(2));
-  }
-
-  const beIdx = profits.findIndex(v => v >= 0);
-  const cpIdx = Math.round((currentPrice - minP) / step);
-
-  if (chartInstance) chartInstance.destroy();
-
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: 'Profit / Order (MAD)',
-          data: profits,
-          borderColor: '#10E898',
-          backgroundColor: (ctx) => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
-            g.addColorStop(0, 'rgba(16,232,152,0.2)');
-            g.addColorStop(1, 'rgba(16,232,152,0)');
-            return g;
-          },
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          borderWidth: 2,
-          yAxisID: 'y',
-        },
-        {
-          label: 'Margin %',
-          data: margins,
-          borderColor: '#FBB924',
-          backgroundColor: 'transparent',
-          tension: 0.4,
-          pointRadius: 0,
-          borderWidth: 1.5,
-          borderDash: [4, 4],
-          yAxisID: 'y1',
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { intersect: false, mode: 'index' },
-      plugins: {
-        legend: {
-          labels: {
-            color: '#6B7280', font: { family: 'DM Mono', size: 10 }, boxWidth: 12
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(6,8,16,0.9)',
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          titleColor: '#E8EAF0',
-          bodyColor: '#6B7280',
-          titleFont: { family: 'Syne', weight: '700' },
-          bodyFont: { family: 'DM Mono' },
-          callbacks: {
-            title: (items) => `Price: ${items[0].label} MAD`,
-            label: (item) => ` ${item.dataset.label}: ${item.raw}${item.datasetIndex === 1 ? '%' : ' MAD'}`
-          }
-        },
-        annotation: {}
-      },
-      scales: {
-        x: {
-          ticks: { color: '#374151', font: { size: 9, family: 'DM Mono' }, maxTicksLimit: 8 },
-          grid: { color: 'rgba(255,255,255,0.03)' }
-        },
-        y: {
-          position: 'left',
-          ticks: { color: '#10E898', font: { size: 9 } },
-          grid: { color: 'rgba(255,255,255,0.04)' }
-        },
-        y1: {
-          position: 'right',
-          ticks: { color: '#FBB924', font: { size: 9 } },
-          grid: { display: false }
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { cairo: ['Cairo','Tajawal','sans-serif'] },
         }
       }
     }
+  </script>
+</head>
+
+<body class="dark font-cairo">
+
+<!-- ░░░ BACKGROUND ░░░ -->
+<div class="bg-mesh"></div>
+
+<!-- ░░░ TOAST ░░░ -->
+<div id="toast">رسالة</div>
+
+<!-- ═══════════════════════════════════════
+     AUTH MODAL
+════════════════════════════════════════ -->
+<div id="authModal" class="modal-overlay" onclick="handleModalOverlayClick(event)">
+  <div class="modal-box glass rounded-3xl p-8 shadow-2xl">
+    <div class="flex justify-between items-center mb-8">
+      <h2 class="text-2xl font-black grad-text" id="authTitle">تسجيل الدخول</h2>
+      <button onclick="closeModal('authModal')" class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 transition text-gray-400 hover:text-white text-xl">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6 bg-white/5 rounded-xl p-1">
+      <button class="tab-btn active flex-1" id="tab-login" onclick="switchAuthTab('login')">دخول</button>
+      <button class="tab-btn flex-1" id="tab-signup" onclick="switchAuthTab('signup')">حساب جديد</button>
+    </div>
+
+    <form id="authForm" onsubmit="handleAuth(event)">
+      <div id="nameField" class="mb-4 hidden">
+        <label class="block text-sm text-gray-400 mb-2">الاسم الكامل</label>
+        <input type="text" id="authName" class="input-field" placeholder="محمد أمين" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-400 mb-2">البريد الإلكتروني</label>
+        <input type="email" id="authEmail" class="input-field" placeholder="you@example.com" required />
+      </div>
+      <div class="mb-6">
+        <label class="block text-sm text-gray-400 mb-2">كلمة المرور</label>
+        <input type="password" id="authPassword" class="input-field" placeholder="••••••••" required />
+      </div>
+      <div id="refField" class="mb-5 hidden">
+        <label class="block text-sm text-gray-400 mb-2">كود الإحالة (اختياري)</label>
+        <input type="text" id="refCode" class="input-field" placeholder="REF-XXXX" />
+      </div>
+      <button type="submit" id="authSubmit" class="btn-primary w-full text-lg py-3">
+        <span id="authBtnText">تسجيل الدخول</span>
+      </button>
+    </form>
+
+    <p class="text-center text-sm text-gray-500 mt-5">
+      بالاستمرار توافق على <a href="#" class="text-teal-400 hover:underline">شروط الاستخدام</a>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     NAVBAR
+════════════════════════════════════════ -->
+<nav class="navbar px-6 py-4">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <!-- Logo -->
+    <a href="#" class="flex items-center gap-3" onclick="showSection('landing')">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center text-xl" style="background: linear-gradient(135deg,var(--teal),var(--gold))">📊</div>
+      <span class="text-xl font-black grad-text">ربحي</span>
+    </a>
+
+    <!-- Nav links (desktop) -->
+    <div class="hidden md:flex items-center gap-6 text-sm">
+      <a href="#features" class="text-gray-400 hover:text-white transition">الميزات</a>
+      <a href="#pricing" class="text-gray-400 hover:text-white transition">الأسعار</a>
+      <button onclick="showSection('calculator')" class="text-gray-400 hover:text-white transition" id="calcNavBtn">الحاسبة</button>
+    </div>
+
+    <!-- Auth area -->
+    <div class="flex items-center gap-3">
+      <div id="navGuest" class="flex items-center gap-3">
+        <button class="btn-outline text-sm py-2 px-4" onclick="openModal('authModal','login')">دخول</button>
+        <button class="btn-primary text-sm py-2 px-4" onclick="openModal('authModal','signup')">ابدأ مجاناً</button>
+      </div>
+      <div id="navUser" class="hidden items-center gap-3">
+        <span class="token-badge">🪙 <span id="navTokens">100</span> رصيد</span>
+        <div class="relative group">
+          <button class="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-yellow-400 flex items-center justify-center text-black font-black text-sm cursor-pointer" id="navAvatar">م</button>
+          <div class="absolute top-full left-0 mt-2 w-48 glass rounded-2xl shadow-2xl overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-50">
+            <div class="px-4 py-3 border-b border-white/5">
+              <p class="text-sm font-semibold" id="navUserEmail">user@example.com</p>
+            </div>
+            <button class="w-full text-right px-4 py-3 text-sm hover:bg-white/5 transition" onclick="showSection('calculator')">📊 الحاسبة</button>
+            <button class="w-full text-right px-4 py-3 text-sm hover:bg-white/5 transition" onclick="showSection('dashboard')">📈 لوحتي</button>
+            <button class="w-full text-right px-4 py-3 text-sm hover:bg-white/5 transition" onclick="showReferral()">🎁 برنامج الإحالة</button>
+            <button class="w-full text-right px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition" onclick="handleSignOut()">تسجيل الخروج</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════
+     LANDING PAGE
+════════════════════════════════════════ -->
+<section id="landingSection">
+
+  <!-- HERO -->
+  <div class="min-h-screen flex items-center justify-center px-6 pt-24 pb-16 relative">
+    <!-- Floating decorative elements -->
+    <div class="absolute top-32 right-10 w-72 h-72 rounded-full opacity-10 float-anim" style="background: radial-gradient(circle, var(--teal), transparent 70%);"></div>
+    <div class="absolute bottom-20 left-10 w-56 h-56 rounded-full opacity-8 float-anim" style="background: radial-gradient(circle, var(--gold), transparent 70%); animation-delay: 2s;"></div>
+
+    <div class="max-w-5xl mx-auto text-center relative z-10">
+      <!-- Badge -->
+      <div class="hero-badge fade-up opacity-0">
+        <span class="w-2 h-2 rounded-full bg-teal-400 inline-block" style="animation: pulse-ring 2s infinite"></span>
+        مخصص للتجار المغاربة 🇲🇦
+      </div>
+
+      <!-- Headline -->
+      <h1 class="text-5xl md:text-7xl font-black leading-tight mb-6 fade-up opacity-0 delay-1" style="line-height:1.2;">
+        احمِ أرباحك من
+        <br/>
+        <span class="grad-text text-glow-gold">ضياع المرتجعات</span>
+      </h1>
+
+      <p class="text-xl text-gray-400 max-w-2xl mx-auto mb-10 fade-up opacity-0 delay-2" style="line-height:2;">
+        الحاسبة الوحيدة التي تحسب <strong class="text-white">الربح الحقيقي</strong> بعد الضرائب، الشحن، ونسبة المرتجعات.
+        احصل على توصيات استراتيجية فورية من الذكاء الاصطناعي لتحسين هامش ربحك.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center fade-up opacity-0 delay-3">
+        <button class="btn-gold text-lg px-10 py-4 rounded-2xl" onclick="handleCTAClick()">
+          🚀 احسب ربحك مجاناً
+        </button>
+        <a href="#features" class="btn-outline text-lg px-8 py-4 rounded-2xl">كيف يعمل؟</a>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-8 mt-20 fade-up opacity-0 delay-4">
+        <div class="stat-item">
+          <div class="stat-num grad-text">+2000</div>
+          <div class="stat-label">تاجر نشط</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:var(--gold)">98%</div>
+          <div class="stat-label">دقة الحساب</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" style="color:var(--teal)">35%</div>
+          <div class="stat-label">متوسط تحسن الربحية</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <div id="features" class="py-20 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-black mb-4">لماذا <span class="grad-text">ربحي</span>؟</h2>
+        <p class="text-gray-400 text-lg">أدوات لا توفرها أي منصة عربية أخرى</p>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="feature-card glass">
+          <div class="text-4xl mb-5">🧮</div>
+          <h3 class="text-xl font-bold mb-3">حساب المخاطر المعدّلة</h3>
+          <p class="text-gray-400 leading-relaxed">نحسب ربحك الحقيقي مع احتساب نسبة المرتجعات المتوقعة، ضريبة المبيعات (TVA)، وتكاليف الشحن والتعبئة.</p>
+        </div>
+        <div class="feature-card glass" style="border-color: rgba(0,201,177,0.2)">
+          <div class="text-4xl mb-5">🤖</div>
+          <h3 class="text-xl font-bold mb-3">مستشار AI فوري</h3>
+          <p class="text-gray-400 leading-relaxed">يحلل نتائجك ويقترح استراتيجيات لتقليل المرتجعات، تحسين التسعير، وزيادة هامش الربح — بالعربية الدارجة.</p>
+        </div>
+        <div class="feature-card glass">
+          <div class="text-4xl mb-5">📊</div>
+          <h3 class="text-xl font-bold mb-3">مخططات تفاعلية</h3>
+          <p class="text-gray-400 leading-relaxed">شاهد توزيع تكاليفك بصرياً، وقارن سيناريوهات التسعير المختلفة لاتخاذ قرار مبني على بيانات.</p>
+        </div>
+        <div class="feature-card glass">
+          <div class="text-4xl mb-5">🇲🇦</div>
+          <h3 class="text-xl font-bold mb-3">مُعدّل للسوق المغربي</h3>
+          <p class="text-gray-400 leading-relaxed">يدعم الدرهم المغربي، معدلات TVA المغربية، وأسعار شركات الشحن الرئيسية مثل Amana وAmex.</p>
+        </div>
+        <div class="feature-card glass" style="border-color: rgba(245,200,66,0.2)">
+          <div class="text-4xl mb-5">🎁</div>
+          <h3 class="text-xl font-bold mb-3">نظام الإحالة</h3>
+          <p class="text-gray-400 leading-relaxed">اربح رصيداً مجانياً عند كل صديق تدعوه. 50 رصيد لك ولصاحبك عند التسجيل برابطك الخاص.</p>
+        </div>
+        <div class="feature-card glass">
+          <div class="text-4xl mb-5">🔒</div>
+          <h3 class="text-xl font-bold mb-3">آمن ومشفّر</h3>
+          <p class="text-gray-400 leading-relaxed">بياناتك مشفّرة ومحمية بـ Supabase. لا مشاركة مع أي طرف ثالث. خصوصيتك أولويتنا.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICING -->
+  <div id="pricing" class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-black mb-4">خطط <span class="grad-text">شفافة</span></h2>
+        <p class="text-gray-400">لا عقود. لا مفاجآت.</p>
+      </div>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="feature-card glass text-center">
+          <div class="text-5xl mb-4">🆓</div>
+          <h3 class="text-2xl font-black mb-2">مجاني</h3>
+          <div class="text-4xl font-black grad-text mb-6">0 درهم</div>
+          <ul class="text-right space-y-3 mb-8 text-gray-300">
+            <li>✅ 100 رصيد AI مجاني</li>
+            <li>✅ جميع ميزات الحاسبة</li>
+            <li>✅ مخططات تفاعلية</li>
+            <li>✅ برنامج الإحالة</li>
+            <li class="text-gray-500">❌ تصدير PDF</li>
+          </ul>
+          <button class="btn-outline w-full py-3" onclick="openModal('authModal','signup')">ابدأ مجاناً</button>
+        </div>
+        <div class="feature-card glass text-center glow-teal relative overflow-hidden" style="border-color: rgba(0,201,177,0.3)">
+          <div class="absolute top-4 left-4 bg-teal-500 text-black text-xs font-bold px-3 py-1 rounded-full">الأكثر شيوعاً</div>
+          <div class="text-5xl mb-4">💎</div>
+          <h3 class="text-2xl font-black mb-2">برو</h3>
+          <div class="text-4xl font-black mb-1" style="color:var(--teal)">99 <span class="text-2xl">درهم</span></div>
+          <p class="text-gray-500 text-sm mb-6">شهرياً</p>
+          <ul class="text-right space-y-3 mb-8 text-gray-300">
+            <li>✅ 1000 رصيد AI شهرياً</li>
+            <li>✅ كل مزايا المجاني</li>
+            <li>✅ تصدير PDF تفصيلي</li>
+            <li>✅ حفظ 50 منتج</li>
+            <li>✅ تحليلات متقدمة</li>
+          </ul>
+          <button class="btn-primary w-full py-3" onclick="handleCTAClick()">اشترك الآن</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA Banner -->
+  <div class="py-20 px-6">
+    <div class="max-w-4xl mx-auto glass rounded-3xl p-12 text-center glow-gold" style="border-color: rgba(245,200,66,0.2)">
+      <h2 class="text-4xl font-black mb-4">جاهز تعرف ربحك الحقيقي؟ 💰</h2>
+      <p class="text-gray-400 text-lg mb-8">سجّل الآن واحصل على 100 رصيد AI مجاناً. بدون بطاقة ائتمانية.</p>
+      <button class="btn-gold text-xl px-12 py-5 rounded-2xl" onclick="openModal('authModal','signup')">
+        ابدأ مجاناً الآن
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5 py-10 px-6">
+    <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <span class="text-xl font-black grad-text">ربحي</span>
+        <span class="text-gray-600 text-sm">© 2024 جميع الحقوق محفوظة</span>
+      </div>
+      <div class="flex gap-6 text-sm text-gray-500">
+        <a href="#" class="hover:text-white transition">سياسة الخصوصية</a>
+        <a href="#" class="hover:text-white transition">شروط الاستخدام</a>
+        <a href="#" class="hover:text-white transition">تواصل معنا</a>
+      </div>
+    </div>
+  </footer>
+
+</section>
+
+<!-- ═══════════════════════════════════════
+     CALCULATOR SECTION
+════════════════════════════════════════ -->
+<section id="calculatorSection" class="hidden pt-24 pb-16 px-4">
+  <div class="max-w-7xl mx-auto">
+
+    <!-- Page header -->
+    <div class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-black grad-text">حاسبة الربح الذكية</h1>
+        <p class="text-gray-400 mt-1">أدخل بيانات منتجك واحصل على تحليل شامل</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="token-badge">🪙 <span id="calcTokens">100</span> رصيد متبقي</span>
+        <button class="btn-outline text-sm py-2 px-4" onclick="showReferral()">🎁 اكسب رصيداً</button>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-6">
+
+      <!-- ── LEFT: Input Form ── -->
+      <div class="lg:col-span-2 space-y-5">
+
+        <!-- Product Info -->
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-5 flex items-center gap-2">📦 <span>بيانات المنتج</span></h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">اسم المنتج</label>
+              <input type="text" id="productName" class="input-field" placeholder="مثال: قميص رجالي" value="قميص رجالي قطني" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">سعر الشراء (د.م.)</label>
+                <input type="number" id="costPrice" class="input-field" value="80" min="0" step="0.01" oninput="calculate()" />
+              </div>
+              <div>
+                <label class="block text-sm text-gray-400 mb-1">سعر البيع (د.م.)</label>
+                <input type="number" id="salePrice" class="input-field" value="200" min="0" step="0.01" oninput="calculate()" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">الكمية المباعة</label>
+              <input type="number" id="quantity" class="input-field" value="100" min="1" oninput="calculate()" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Costs -->
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-5 flex items-center gap-2">🚚 <span>التكاليف التشغيلية</span></h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">تكلفة الشحن للطلب (د.م.)</label>
+              <input type="number" id="shippingCost" class="input-field" value="25" min="0" oninput="calculate()" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">تكلفة التعبئة والتغليف (د.م.)</label>
+              <input type="number" id="packagingCost" class="input-field" value="5" min="0" oninput="calculate()" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">تكلفة التسويق للطلب (د.م.)</label>
+              <input type="number" id="marketingCost" class="input-field" value="15" min="0" oninput="calculate()" />
+            </div>
+            <div>
+              <label class="block text-sm text-gray-400 mb-1">تكاليف أخرى (د.م.)</label>
+              <input type="number" id="otherCosts" class="input-field" value="0" min="0" oninput="calculate()" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tax & Returns -->
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-5 flex items-center gap-2">⚖️ <span>الضرائب والمرتجعات</span></h3>
+          <div class="space-y-5">
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-sm text-gray-400">ضريبة TVA (%)</label>
+                <span class="text-white font-bold" id="tvaDisplay">20%</span>
+              </div>
+              <div class="flex gap-2 mb-2">
+                <button class="tab-btn text-xs active" onclick="setTVA(0,this)">0%</button>
+                <button class="tab-btn text-xs" onclick="setTVA(7,this)">7%</button>
+                <button class="tab-btn text-xs" onclick="setTVA(10,this)">10%</button>
+                <button class="tab-btn text-xs" onclick="setTVA(14,this)">14%</button>
+                <button class="tab-btn text-xs" onclick="setTVA(20,this)">20%</button>
+              </div>
+              <input type="range" id="tvaRate" min="0" max="30" value="20" step="1" oninput="onTVASlider(this.value)" />
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-sm text-gray-400">نسبة المرتجعات المتوقعة (%)</label>
+                <span id="returnRateDisplay" class="font-bold" style="color:var(--danger)">15%</span>
+              </div>
+              <input type="range" id="returnRate" min="0" max="60" value="15" step="1" oninput="onReturnSlider(this.value); calculate()" />
+              <div class="flex justify-between text-xs text-gray-600 mt-1">
+                <span>0%</span><span>منخفض: 5-15%</span><span>مرتفع: +30%</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-sm text-gray-400">تكلفة المرتجع الواحد (د.م.)</label>
+                <span class="text-white font-bold" id="returnCostDisplay">20</span>
+              </div>
+              <input type="range" id="returnCost" min="0" max="100" value="20" step="5" oninput="document.getElementById('returnCostDisplay').textContent=this.value; calculate()" />
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-primary w-full py-4 text-lg" onclick="calculate()">
+          ✨ احسب الآن
+        </button>
+      </div>
+
+      <!-- ── RIGHT: Results ── -->
+      <div class="lg:col-span-3 space-y-5">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="summaryCards">
+          <div class="result-card glass profit">
+            <p class="text-xs text-gray-400 mb-1">الربح الصافي</p>
+            <p class="text-2xl font-black" style="color:var(--teal)" id="netProfit">—</p>
+            <p class="text-xs text-gray-500" id="netProfitSub">د.م.</p>
+          </div>
+          <div class="result-card glass neutral">
+            <p class="text-xs text-gray-400 mb-1">هامش الربح</p>
+            <p class="text-2xl font-black" style="color:var(--gold)" id="profitMargin">—</p>
+            <p class="text-xs text-gray-500">% من الإيراد</p>
+          </div>
+          <div class="result-card glass neutral">
+            <p class="text-xs text-gray-400 mb-1">إجمالي الإيراد</p>
+            <p class="text-2xl font-black text-white" id="grossRevenue">—</p>
+            <p class="text-xs text-gray-500">بعد المرتجعات</p>
+          </div>
+          <div class="result-card glass loss">
+            <p class="text-xs text-gray-400 mb-1">خسارة المرتجعات</p>
+            <p class="text-2xl font-black" style="color:var(--danger)" id="returnLoss">—</p>
+            <p class="text-xs text-gray-500">د.م.</p>
+          </div>
+        </div>
+
+        <!-- Profit Meter -->
+        <div class="glass rounded-2xl p-5">
+          <div class="flex justify-between items-center mb-3">
+            <span class="text-sm font-semibold">مقياس صحة الربحية</span>
+            <span id="healthLabel" class="text-sm font-bold text-teal-400">ممتاز</span>
+          </div>
+          <div class="profit-meter">
+            <div class="profit-meter-fill" id="profitMeterFill" style="width:0%; background: linear-gradient(90deg,var(--danger),var(--gold),var(--teal))"></div>
+          </div>
+          <div class="flex justify-between text-xs text-gray-600 mt-1">
+            <span>خاسر</span><span>مقبول</span><span>ممتاز</span>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="glass rounded-2xl p-6">
+          <div class="flex gap-2 mb-5">
+            <button class="tab-btn active text-sm" onclick="switchChart('doughnut',this)">توزيع التكاليف</button>
+            <button class="tab-btn text-sm" onclick="switchChart('bar',this)">مقارنة السيناريو</button>
+          </div>
+          <div class="relative" style="height:240px;">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Breakdown Table -->
+        <div class="glass rounded-2xl p-6">
+          <h3 class="font-bold text-lg mb-4">📋 التفاصيل الحسابية</h3>
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>البند</th>
+                <th class="text-left">للوحدة (د.م.)</th>
+                <th class="text-left">الإجمالي (د.م.)</th>
+              </tr>
+            </thead>
+            <tbody id="breakdownBody">
+              <tr><td colspan="3" class="text-center text-gray-500 py-4">أدخل البيانات لعرض التفاصيل</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- AI Recommendations -->
+        <div class="glass rounded-2xl p-6" id="aiSection">
+          <div class="flex justify-between items-center mb-5">
+            <h3 class="font-bold text-lg flex items-center gap-2">🤖 <span>توصيات الذكاء الاصطناعي</span></h3>
+            <span class="token-badge text-xs">يكلف 1 🪙</span>
+          </div>
+
+          <div id="aiContent">
+            <p class="text-gray-400 text-sm mb-5 leading-relaxed">
+              احصل على تحليل استراتيجي شخصي من نموذج Llama 3 المتخصص في التجارة الإلكترونية المغربية.
+            </p>
+            <button class="btn-primary w-full py-3" onclick="getAIAdvice()">
+              ✨ احصل على توصية ذكية
+            </button>
+          </div>
+
+          <div id="aiLoading" class="hidden text-center py-8">
+            <div class="loading-dots mb-4">
+              <span></span><span></span><span></span>
+            </div>
+            <p class="text-gray-400 text-sm">Llama 3 يحلل بياناتك...</p>
+          </div>
+
+          <div id="aiResult" class="hidden">
+            <div class="ai-bubble text-sm text-gray-300" id="aiText"></div>
+            <div class="flex justify-between items-center mt-4">
+              <button class="btn-outline text-sm py-2 px-4" onclick="getAIAdvice()">🔄 تحليل جديد</button>
+              <button class="btn-outline text-sm py-2 px-4" onclick="copyAIText()">📋 نسخ</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Referral Box -->
+        <div id="referralBox" class="referral-box">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="text-2xl">🎁</span>
+            <div>
+              <p class="font-bold">اربح رصيداً مجانياً!</p>
+              <p class="text-sm text-gray-400">50 رصيد لك ولصاحبك عند تسجيله برابطك</p>
+            </div>
+          </div>
+          <div class="referral-link mb-3" id="referralLinkDisplay">سجّل دخولك لعرض رابط الإحالة</div>
+          <button class="btn-outline text-sm py-2 px-4 w-full" onclick="copyReferral()">📋 نسخ الرابط</button>
+        </div>
+
+      </div><!-- /right col -->
+    </div><!-- /grid -->
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     DASHBOARD SECTION
+════════════════════════════════════════ -->
+<section id="dashboardSection" class="hidden pt-24 pb-16 px-4">
+  <div class="max-w-5xl mx-auto">
+    <div class="mb-10">
+      <h1 class="text-3xl font-black grad-text">لوحة التحكم</h1>
+      <p class="text-gray-400 mt-1">إحصائياتك وتاريخ حساباتك</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+      <div class="glass rounded-2xl p-6 text-center">
+        <p class="text-gray-400 text-sm mb-2">رصيد AI المتبقي</p>
+        <p class="text-4xl font-black grad-text" id="dashTokens">—</p>
+      </div>
+      <div class="glass rounded-2xl p-6 text-center">
+        <p class="text-gray-400 text-sm mb-2">عمليات حسابية</p>
+        <p class="text-4xl font-black" style="color:var(--teal)">0</p>
+      </div>
+      <div class="glass rounded-2xl p-6 text-center">
+        <p class="text-gray-400 text-sm mb-2">إجمالي الإحالات</p>
+        <p class="text-4xl font-black" style="color:var(--gold)" id="dashReferrals">0</p>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6 mb-6">
+      <h3 class="font-bold text-lg mb-5">برنامج الإحالة</h3>
+      <div class="referral-box">
+        <p class="text-sm text-gray-300 mb-3">رابط الإحالة الخاص بك:</p>
+        <div class="referral-link mb-3" id="dashReferralLink">جارٍ التحميل...</div>
+        <div class="flex gap-3">
+          <button class="btn-gold flex-1 py-2 text-sm" onclick="copyReferral()">📋 نسخ الرابط</button>
+          <button class="btn-outline flex-1 py-2 text-sm" onclick="shareReferral()">📤 مشاركة</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-6">
+      <h3 class="font-bold text-lg mb-4">معلومات الحساب</h3>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between py-2 border-b border-white/5">
+          <span class="text-gray-400">البريد الإلكتروني</span>
+          <span id="dashEmail">—</span>
+        </div>
+        <div class="flex justify-between py-2 border-b border-white/5">
+          <span class="text-gray-400">تاريخ التسجيل</span>
+          <span id="dashCreated">—</span>
+        </div>
+        <div class="flex justify-between py-2">
+          <span class="text-gray-400">الخطة الحالية</span>
+          <span class="token-badge text-xs">مجاني</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script>
+// ═══════════════════════════════
+// CONFIG — Replace with your keys
+// ═══════════════════════════════
+const SUPABASE_URL  = 'https://ddfbnijygwrrghdrbici.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZmJuaWp5Z3dycmdoZHJiaWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTcxOTUsImV4cCI6MjA4Nzg3MzE5NX0.c6OnX0iTbFS44PmBhZdrQmMa4sohR3J6h2aMRdH9QqQ';
+const GROQ_API_KEY  = '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';
+
+// Init Supabase
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ═══════════════════════════════
+// STATE
+// ═══════════════════════════════
+let currentUser   = null;
+let userProfile   = null;
+let userTokens    = 100;
+let calcResults   = null;
+let mainChart     = null;
+let currentTab    = 'login';
+let tvaRateValue  = 20;
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check URL for referral code
+  const urlParams = new URLSearchParams(window.location.search);
+  const refParam  = urlParams.get('ref');
+  if (refParam) {
+    document.getElementById('refCode').value = refParam;
+    switchAuthTab('signup');
+  }
+
+  // Listen to auth changes
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      currentUser = session.user;
+      await loadUserProfile();
+      showAuthUI(true);
+    } else {
+      currentUser = null;
+      userProfile = null;
+      showAuthUI(false);
+    }
   });
-}
 
-function showToast() {
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
+  // Initial calculation
+  calculate();
 
-// Auto-calculate on input changes
-document.querySelectorAll('input[type=number], select').forEach(el => {
-  el.addEventListener('input', () => calculate());
+  // Animate hero elements
+  document.querySelectorAll('.fade-up').forEach(el => {
+    el.style.opacity = '1';
+  });
 });
 
-// Initial render
-window.addEventListener('DOMContentLoaded', () => calculate());
+// ═══════════════════════════════
+// SECTION NAVIGATION
+// ═══════════════════════════════
+function showSection(name) {
+  document.getElementById('landingSection').classList.add('hidden');
+  document.getElementById('calculatorSection').classList.add('hidden');
+  document.getElementById('dashboardSection').classList.add('hidden');
+
+  if (name === 'landing')    document.getElementById('landingSection').classList.remove('hidden');
+  if (name === 'calculator') {
+    if (!currentUser) { openModal('authModal','login'); return; }
+    document.getElementById('calculatorSection').classList.remove('hidden');
+    calculate();
+  }
+  if (name === 'dashboard') {
+    if (!currentUser) { openModal('authModal','login'); return; }
+    document.getElementById('dashboardSection').classList.remove('hidden');
+    loadDashboard();
+  }
+}
+
+function handleCTAClick() {
+  if (currentUser) showSection('calculator');
+  else openModal('authModal','signup');
+}
+
+// ═══════════════════════════════
+// MODAL
+// ═══════════════════════════════
+function openModal(id, tab) {
+  document.getElementById(id).classList.add('open');
+  if (tab) switchAuthTab(tab);
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function handleModalOverlayClick(e) {
+  if (e.target === e.currentTarget) closeModal('authModal');
+}
+
+// ═══════════════════════════════
+// AUTH TAB SWITCH
+// ═══════════════════════════════
+function switchAuthTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+  document.getElementById('nameField').classList.toggle('hidden', tab !== 'signup');
+  document.getElementById('refField').classList.toggle('hidden', tab !== 'signup');
+  document.getElementById('authTitle').textContent = tab === 'login' ? 'تسجيل الدخول' : 'إنشاء حساب';
+  document.getElementById('authBtnText').textContent = tab === 'login' ? 'تسجيل الدخول' : 'إنشاء الحساب';
+}
+
+// ═══════════════════════════════
+// AUTH HANDLER
+// ═══════════════════════════════
+async function handleAuth(e) {
+  e.preventDefault();
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const name     = document.getElementById('authName').value.trim();
+  const refCode  = document.getElementById('refCode').value.trim();
+  const btn      = document.getElementById('authSubmit');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-dots"><span></span><span></span><span></span></span>';
+
+  try {
+    if (currentTab === 'signup') {
+      // Sign up
+      const { data, error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { full_name: name } }
+      });
+      if (error) throw error;
+
+      // Create profile with 100 free tokens
+      if (data.user) {
+        const referralCode = 'REF-' + data.user.id.substring(0,6).toUpperCase();
+        await sb.from('profiles').insert({
+          id: data.user.id,
+          email,
+          full_name: name || email.split('@')[0],
+          tokens: 100,
+          referral_code: referralCode,
+          referred_by: refCode || null,
+          created_at: new Date().toISOString()
+        });
+        // If referred, reward both users
+        if (refCode) {
+          await sb.rpc('reward_referral', { ref_code: refCode, new_user_id: data.user.id });
+        }
+      }
+      showToast('🎉 مرحباً! تحقق من بريدك للتأكيد');
+
+    } else {
+      // Sign in
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      showToast('👋 مرحباً بعودتك!');
+    }
+    closeModal('authModal');
+    showSection('calculator');
+  } catch (err) {
+    showToast('❌ ' + (err.message || 'حدث خطأ'), true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span id="authBtnText">' + (currentTab === 'login' ? 'تسجيل الدخول' : 'إنشاء الحساب') + '</span>';
+  }
+}
+
+// ═══════════════════════════════
+// SIGN OUT
+// ═══════════════════════════════
+async function handleSignOut() {
+  await sb.auth.signOut();
+  currentUser = null;
+  showAuthUI(false);
+  showSection('landing');
+  showToast('👋 تم تسجيل الخروج');
+}
+
+// ═══════════════════════════════
+// LOAD USER PROFILE
+// ═══════════════════════════════
+async function loadUserProfile() {
+  if (!currentUser) return;
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (data) {
+    userProfile = data;
+    userTokens = data.tokens || 0;
+    updateTokenDisplay();
+    const initial = (data.full_name || data.email || 'م').charAt(0).toUpperCase();
+    document.getElementById('navAvatar').textContent = initial;
+    document.getElementById('navUserEmail').textContent = data.email || currentUser.email;
+    // Set referral link
+    const refLink = window.location.origin + window.location.pathname + '?ref=' + data.referral_code;
+    document.getElementById('referralLinkDisplay').textContent = refLink;
+  }
+}
+
+// ═══════════════════════════════
+// SHOW AUTH UI
+// ═══════════════════════════════
+function showAuthUI(loggedIn) {
+  document.getElementById('navGuest').classList.toggle('hidden', loggedIn);
+  document.getElementById('navUser').classList.toggle('hidden', !loggedIn);
+  document.getElementById('navUser').classList.toggle('flex', loggedIn);
+}
+
+// ═══════════════════════════════
+// UPDATE TOKEN DISPLAY
+// ═══════════════════════════════
+function updateTokenDisplay() {
+  document.getElementById('navTokens').textContent = userTokens;
+  document.getElementById('calcTokens').textContent = userTokens;
+  if (document.getElementById('dashTokens'))
+    document.getElementById('dashTokens').textContent = userTokens;
+}
+
+// ═══════════════════════════════
+// TVA CONTROLS
+// ═══════════════════════════════
+function setTVA(val, btn) {
+  tvaRateValue = val;
+  document.getElementById('tvaRate').value = val;
+  document.getElementById('tvaDisplay').textContent = val + '%';
+  document.querySelectorAll('.tab-btn[onclick^="setTVA"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calculate();
+}
+function onTVASlider(val) {
+  tvaRateValue = parseInt(val);
+  document.getElementById('tvaDisplay').textContent = val + '%';
+  document.querySelectorAll('.tab-btn[onclick^="setTVA"]').forEach(b => b.classList.remove('active'));
+  calculate();
+}
+function onReturnSlider(val) {
+  const display = document.getElementById('returnRateDisplay');
+  display.textContent = val + '%';
+  const v = parseInt(val);
+  display.style.color = v < 10 ? 'var(--teal)' : v < 25 ? 'var(--gold)' : 'var(--danger)';
+}
+
+// ═══════════════════════════════
+// MAIN CALCULATOR — Risk-Adjusted
+// ═══════════════════════════════
+function calculate() {
+  const costPrice     = parseFloat(document.getElementById('costPrice').value) || 0;
+  const salePrice     = parseFloat(document.getElementById('salePrice').value) || 0;
+  const qty           = parseInt(document.getElementById('quantity').value) || 0;
+  const shippingCost  = parseFloat(document.getElementById('shippingCost').value) || 0;
+  const packagingCost = parseFloat(document.getElementById('packagingCost').value) || 0;
+  const marketingCost = parseFloat(document.getElementById('marketingCost').value) || 0;
+  const otherCosts    = parseFloat(document.getElementById('otherCosts').value) || 0;
+  const tvaRate       = tvaRateValue / 100;
+  const returnRate    = parseFloat(document.getElementById('returnRate').value) / 100 || 0;
+  const returnCostPer = parseFloat(document.getElementById('returnCost').value) || 0;
+
+  // ── Risk-Adjusted Calculation ──
+  const soldUnits     = qty * (1 - returnRate);
+  const returnedUnits = qty * returnRate;
+
+  // Revenue (only from actually kept sales, net of TVA)
+  const revenueGross  = salePrice * soldUnits;
+  const tvaAmount     = revenueGross * tvaRate;
+  const revenueNet    = revenueGross - tvaAmount;
+
+  // Total costs (for ALL units ordered, incl. returned)
+  const totalCostGoods   = costPrice * qty;
+  const totalShipping    = shippingCost * qty;
+  const totalPackaging   = packagingCost * qty;
+  const totalMarketing   = marketingCost * soldUnits; // only for sold
+  const totalOther       = otherCosts * qty;
+  const totalReturnCost  = returnCostPer * returnedUnits;
+
+  const totalCosts = totalCostGoods + totalShipping + totalPackaging + totalMarketing + totalOther + totalReturnCost;
+
+  // Net Profit
+  const netProfit    = revenueNet - totalCosts;
+  const profitMargin = revenueNet > 0 ? (netProfit / revenueNet) * 100 : 0;
+  const profitPerUnit = soldUnits > 0 ? netProfit / soldUnits : 0;
+  const ROI          = totalCosts > 0 ? (netProfit / totalCosts) * 100 : 0;
+
+  calcResults = {
+    costPrice, salePrice, qty, soldUnits, returnedUnits,
+    shippingCost, packagingCost, marketingCost, otherCosts,
+    tvaRate, tvaRateValue, returnRate, returnCostPer,
+    revenueGross, tvaAmount, revenueNet,
+    totalCostGoods, totalShipping, totalPackaging, totalMarketing, totalOther, totalReturnCost,
+    totalCosts, netProfit, profitMargin, profitPerUnit, ROI
+  };
+
+  // ── Update UI ──
+  const fmt = n => n.toLocaleString('ar-MA', { maximumFractionDigits: 0 });
+
+  document.getElementById('netProfit').textContent    = fmt(netProfit) + ' د.م.';
+  document.getElementById('netProfit').style.color    = netProfit >= 0 ? 'var(--teal)' : 'var(--danger)';
+  document.getElementById('profitMargin').textContent = profitMargin.toFixed(1) + '%';
+  document.getElementById('profitMargin').style.color = profitMargin >= 20 ? 'var(--teal)' : profitMargin >= 5 ? 'var(--gold)' : 'var(--danger)';
+  document.getElementById('grossRevenue').textContent = fmt(revenueNet) + ' د.م.';
+  document.getElementById('returnLoss').textContent   = fmt(totalReturnCost + (salePrice * returnedUnits)) + ' د.م.';
+
+  // Profit meter
+  const health = Math.max(0, Math.min(100, profitMargin + 10));
+  document.getElementById('profitMeterFill').style.width = health + '%';
+  document.getElementById('healthLabel').textContent =
+    profitMargin >= 30 ? 'ممتاز 🌟' : profitMargin >= 15 ? 'جيد ✅' : profitMargin >= 5 ? 'مقبول ⚠️' : profitMargin >= 0 ? 'ضعيف 🔴' : 'خسارة ❌';
+  document.getElementById('healthLabel').style.color =
+    profitMargin >= 30 ? 'var(--teal)' : profitMargin >= 15 ? '#7ee787' : profitMargin >= 0 ? 'var(--gold)' : 'var(--danger)';
+
+  // Breakdown table
+  const rows = [
+    ['سعر البيع للوحدة', salePrice, salePrice * soldUnits, '#e8f0ff'],
+    ['ضريبة TVA (' + tvaRateValue + '%)', -(salePrice * tvaRate), -(tvaAmount), 'var(--danger)'],
+    ['تكلفة البضاعة', -costPrice, -totalCostGoods, 'var(--danger)'],
+    ['تكلفة الشحن', -shippingCost, -totalShipping, 'var(--danger)'],
+    ['تكلفة التعبئة', -packagingCost, -totalPackaging, 'var(--danger)'],
+    ['تكلفة التسويق', -marketingCost, -totalMarketing, 'var(--danger)'],
+    ['خسارة المرتجعات', -(returnCostPer + salePrice) * returnRate, -(totalReturnCost + salePrice * returnedUnits), 'var(--danger)'],
+    ['تكاليف أخرى', -otherCosts, -totalOther, 'var(--danger)'],
+  ];
+  const tbody = document.getElementById('breakdownBody');
+  tbody.innerHTML = rows.map(([label, unit, total, color]) =>
+    `<tr>
+      <td>${label}</td>
+      <td class="text-left font-mono" style="color:${unit >= 0 ? 'var(--teal)' : 'var(--danger)'}">
+        ${unit >= 0 ? '+' : ''}${Math.abs(unit).toFixed(2)}
+      </td>
+      <td class="text-left font-mono font-bold" style="color:${total >= 0 ? 'var(--teal)' : 'var(--danger)'}">
+        ${total >= 0 ? '+' : ''}${Math.abs(Math.round(total)).toLocaleString('ar-MA')}
+      </td>
+    </tr>`
+  ).join('') +
+  `<tr style="border-top: 2px solid rgba(255,255,255,0.1);">
+    <td class="font-black">🏁 الربح الصافي</td>
+    <td class="text-left font-mono font-black" style="color:${profitPerUnit >= 0 ? 'var(--teal)' : 'var(--danger)'}">
+      ${profitPerUnit >= 0 ? '+' : ''}${Math.abs(profitPerUnit).toFixed(2)}
+    </td>
+    <td class="text-left font-mono font-black text-base" style="color:${netProfit >= 0 ? 'var(--teal)' : 'var(--danger)'}">
+      ${netProfit >= 0 ? '+' : ''}${Math.abs(Math.round(netProfit)).toLocaleString('ar-MA')} د.م.
+    </td>
+  </tr>`;
+
+  updateChart();
+}
+
+// ═══════════════════════════════
+// CHART
+// ═══════════════════════════════
+let currentChartType = 'doughnut';
+
+function switchChart(type, btn) {
+  currentChartType = type;
+  document.querySelectorAll('.tab-btn[onclick^="switchChart"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+  updateChart();
+}
+
+function updateChart() {
+  if (!calcResults) return;
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+
+  if (currentChartType === 'doughnut') {
+    const d = calcResults;
+    mainChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['البضاعة','الشحن','التعبئة','التسويق','TVA','المرتجعات','الربح'],
+        datasets: [{
+          data: [
+            Math.abs(d.totalCostGoods),
+            Math.abs(d.totalShipping),
+            Math.abs(d.totalPackaging),
+            Math.abs(d.totalMarketing),
+            Math.abs(d.tvaAmount),
+            Math.abs(d.totalReturnCost),
+            Math.max(0, d.netProfit)
+          ],
+          backgroundColor: [
+            '#ef4444','#f97316','#eab308','#a855f7','#3b82f6','#ff4d6d','#00c9b1'
+          ],
+          borderWidth: 0,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color:'#8899b0', font:{ family:'Cairo', size:11 }, padding:12 } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ' ' + ctx.label + ': ' + Math.round(ctx.raw).toLocaleString('ar-MA') + ' د.م.'
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+  } else {
+    // Bar: compare 3 pricing scenarios
+    const d = calcResults;
+    const basePrice = d.salePrice;
+    const scenarios = [-20, 0, 20, 40].map(pct => {
+      const price = basePrice * (1 + pct/100);
+      const soldUnits = d.soldUnits;
+      const rev = price * soldUnits * (1 - d.tvaRate);
+      const profit = rev - d.totalCosts + (d.marketingCost * d.soldUnits) - (d.marketingCost * soldUnits);
+      return { label: (pct >= 0 ? '+' : '') + pct + '% سعر', profit: Math.round(profit) };
+    });
+    mainChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: scenarios.map(s => s.label),
+        datasets: [{
+          label: 'الربح الصافي (د.م.)',
+          data: scenarios.map(s => s.profit),
+          backgroundColor: scenarios.map(s => s.profit >= 0 ? 'rgba(0,201,177,0.7)' : 'rgba(255,77,109,0.7)'),
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' ' + Math.round(ctx.raw).toLocaleString('ar-MA') + ' د.م.' } }
+        },
+        scales: {
+          x: { ticks: { color:'#8899b0', font:{ family:'Cairo' } }, grid: { color:'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color:'#8899b0', font:{ family:'Cairo' }, callback: v => v.toLocaleString() }, grid: { color:'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  }
+}
+
+// ═══════════════════════════════
+// AI ADVICE (Groq + Llama 3)
+// ═══════════════════════════════
+async function getAIAdvice() {
+  if (!currentUser) { openModal('authModal','login'); return; }
+  if (userTokens <= 0) { showToast('❌ رصيدك نفذ! أحل صديقاً لتربح رصيداً', true); return; }
+  if (!calcResults)    { showToast('⚠️ احسب أولاً قبل طلب التوصية'); return; }
+
+  const d = calcResults;
+  const prompt = `أنت مستشار تجارة إلكترونية خبير في السوق المغربي. حلّل هذه البيانات وقدّم توصيات استراتيجية عملية باللغة العربية (مزيج من الفصحى والدارجة المغربية):
+
+📦 المنتج: ${document.getElementById('productName').value || 'منتج غير محدد'}
+💰 سعر الشراء: ${d.costPrice} درهم | سعر البيع: ${d.salePrice} درهم
+📊 الكمية: ${d.qty} وحدة | المباعة فعلاً: ${Math.round(d.soldUnits)} وحدة
+↩️ نسبة المرتجعات: ${(d.returnRate*100).toFixed(0)}% (${Math.round(d.returnedUnits)} وحدة مرتجعة)
+💸 إجمالي التكاليف: ${Math.round(d.totalCosts)} درهم
+🏷️ TVA: ${d.tvaRateValue}% = ${Math.round(d.tvaAmount)} درهم
+🏁 الربح الصافي: ${Math.round(d.netProfit)} درهم
+📈 هامش الربح: ${d.profitMargin.toFixed(1)}%
+📦 خسارة المرتجعات: ${Math.round(d.totalReturnCost)} درهم
+
+قدّم تحليلاً في 4 نقاط:
+1. 🚨 أهم مشكلة في الأرقام
+2. 💡 استراتيجية لتخفيض المرتجعات
+3. 💰 كيف تحسّن سعر البيع أو التكاليف
+4. 🎯 الخطوة الواحدة الأهم الآن
+كن محدداً وعملياً ومباشراً. لا تكرر البيانات. أعطِ نصائح قابلة للتطبيق فوراً.`;
+
+  // Update UI
+  document.getElementById('aiContent').classList.add('hidden');
+  document.getElementById('aiResult').classList.add('hidden');
+  document.getElementById('aiLoading').classList.remove('hidden');
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + GROQ_API_KEY
+      },
+      body: JSON.stringify({
+        model: 'qwen/qwen3-32b',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 600,
+        temperature: 0.7
+      })
+    });
+
+    if (!res.ok) throw new Error('Groq API error: ' + res.status);
+    const json  = await res.json();
+    const advice = json.choices?.[0]?.message?.content || 'لم أتمكن من الحصول على توصية.';
+
+    // Deduct token
+    userTokens = Math.max(0, userTokens - 1);
+    await sb.from('profiles').update({ tokens: userTokens }).eq('id', currentUser.id);
+    updateTokenDisplay();
+
+    // Log usage
+    await sb.from('token_usage').insert({
+      user_id: currentUser.id,
+      action: 'ai_advice',
+      product_name: document.getElementById('productName').value,
+      tokens_used: 1,
+      created_at: new Date().toISOString()
+    });
+
+    document.getElementById('aiText').textContent = advice;
+    document.getElementById('aiLoading').classList.add('hidden');
+    document.getElementById('aiResult').classList.remove('hidden');
+
+  } catch (err) {
+    document.getElementById('aiLoading').classList.add('hidden');
+    document.getElementById('aiContent').classList.remove('hidden');
+    showToast('❌ ' + (err.message || 'خطأ في الاتصال'), true);
+    console.error(err);
+  }
+}
+
+function copyAIText() {
+  const text = document.getElementById('aiText').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('✅ تم النسخ!'));
+}
+
+// ═══════════════════════════════
+// REFERRAL
+// ═══════════════════════════════
+function showReferral() {
+  if (!currentUser) { openModal('authModal','login'); return; }
+  showSection('dashboard');
+}
+
+function copyReferral() {
+  const code = userProfile?.referral_code;
+  if (!code) { showToast('⚠️ سجّل دخولك أولاً'); return; }
+  const link = window.location.origin + window.location.pathname + '?ref=' + code;
+  navigator.clipboard.writeText(link).then(() => showToast('✅ تم نسخ رابط الإحالة!'));
+}
+
+async function shareReferral() {
+  const code = userProfile?.referral_code;
+  if (!code) return;
+  const link = window.location.origin + window.location.pathname + '?ref=' + code;
+  const text = `🚀 استخدم ربحي لحساب أرباحك الحقيقية من التجارة الإلكترونية!\nسجّل الآن واحصل على 50 رصيد مجاني: ${link}`;
+  if (navigator.share) {
+    navigator.share({ title: 'ربحي — حاسبة الربح', text, url: link });
+  } else {
+    navigator.clipboard.writeText(text).then(() => showToast('✅ تم نسخ رسالة المشاركة!'));
+  }
+}
+
+// ═══════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════
+async function loadDashboard() {
+  if (!currentUser || !userProfile) return;
+  document.getElementById('dashEmail').textContent   = currentUser.email;
+  document.getElementById('dashCreated').textContent = new Date(currentUser.created_at).toLocaleDateString('ar-MA');
+  document.getElementById('dashTokens').textContent  = userTokens;
+
+  const refLink = window.location.origin + window.location.pathname + '?ref=' + (userProfile.referral_code || '');
+  document.getElementById('dashReferralLink').textContent = refLink;
+
+  // Count referrals
+  const { count } = await sb.from('profiles').select('*', { count: 'exact', head: true })
+    .eq('referred_by', userProfile.referral_code);
+  document.getElementById('dashReferrals').textContent = count || 0;
+}
+
+// ═══════════════════════════════
+// TOAST
+// ═══════════════════════════════
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'rgba(255,77,109,0.4)' : 'rgba(0,201,177,0.3)';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════
+// SMOOTH SCROLL
+// ═══════════════════════════════
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior:'smooth' }); }
+  });
+});
 </script>
 </body>
 </html>
