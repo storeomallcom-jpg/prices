@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MarocCalc Pro — Risk-Adjusted Pricing Engine</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060810;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-glow: rgba(251,191,36,0.3);
+      --gold: #FBB924;
+      --gold-dim: rgba(251,185,36,0.15);
+      --green: #10E898;
+      --green-dim: rgba(16,232,152,0.12);
+      --red: #FF4D6D;
+      --red-dim: rgba(255,77,109,0.12);
+      --blue: #38BDF8;
+      --text: #E8EAF0;
+      --muted: #6B7280;
+      --radius: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(251,185,36,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(16,232,152,0.05) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 50% 50%, rgba(56,189,248,0.03) 0%, transparent 70%);
+    }
+
+    /* Grid overlay */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .app { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    /* HEADER */
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 28px 0 40px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .logo-mark {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--gold) 0%, #FF8C00 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: #000;
+      box-shadow: 0 0 24px rgba(251,185,36,0.4);
+    }
+    .logo-text { font-family: 'Syne', sans-serif; }
+    .logo-text h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+    .logo-text p { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+    .header-badge {
+      background: var(--gold-dim); border: 1px solid var(--gold);
+      color: var(--gold); padding: 5px 14px; border-radius: 100px;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.5px;
+    }
+
+    /* GLASS CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 24px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(255,255,255,0.12); }
+    .card-title {
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title span { color: var(--gold); font-size: 16px; }
+
+    /* LAYOUT GRID */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+    /* INPUTS */
+    .input-group { display: flex; flex-direction: column; gap: 14px; }
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label {
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--muted); font-weight: 500;
+    }
+    .field-wrap { position: relative; }
+    .field-wrap input, .field-wrap select {
+      width: 100%; background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-family: 'DM Mono', monospace;
+      font-size: 14px; padding: 11px 40px 11px 14px;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+    }
+    .field-wrap select { padding-right: 14px; cursor: pointer; }
+    .field-wrap input:focus, .field-wrap select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(251,185,36,0.1);
+    }
+    .field-unit {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 11px; color: var(--muted); pointer-events: none;
+    }
+    input[type=range] {
+      width: 100%; height: 4px; appearance: none;
+      background: var(--border); border-radius: 4px; outline: none;
+      cursor: pointer; padding: 0;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--gold); cursor: pointer;
+      box-shadow: 0 0 8px rgba(251,185,36,0.5);
+    }
+    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* CALC BUTTON */
+    .calc-btn {
+      width: 100%; padding: 14px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--gold) 0%, #FF8C00 100%);
+      color: #000; font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 14px; letter-spacing: 0.5px; border: none; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 24px rgba(251,185,36,0.3);
+      margin-top: 4px;
+    }
+    .calc-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(251,185,36,0.45); }
+    .calc-btn:active { transform: translateY(0); }
+
+    /* METRICS */
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .metric {
+      background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .metric.positive { border-color: rgba(16,232,152,0.3); background: var(--green-dim); }
+    .metric.negative { border-color: rgba(255,77,109,0.3); background: var(--red-dim); }
+    .metric.warning { border-color: rgba(251,185,36,0.3); background: var(--gold-dim); }
+    .metric-label { font-size: 10px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+    .metric-value {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px;
+      line-height: 1;
+    }
+    .metric-value.green { color: var(--green); }
+    .metric-value.red { color: var(--red); }
+    .metric-value.gold { color: var(--gold); }
+    .metric-sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* BREAKEVEN TABLE */
+    .be-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .be-table th {
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--muted); padding: 8px 0; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .be-table td { padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .be-table tr:last-child td { border-bottom: none; }
+    .be-table .val { font-family: 'Syne', sans-serif; font-weight: 600; text-align: right; }
+    .be-table .divider { color: var(--border); }
+
+    /* SENSITIVITY */
+    .sensitivity-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px 16px;
+      border: 1px solid var(--border); margin-bottom: 8px;
+    }
+    .sensitivity-label { font-size: 11px; color: var(--muted); }
+    .sensitivity-delta { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+
+    /* AI ADVICE */
+    .ai-box {
+      border-radius: 12px; padding: 18px;
+      border: 1px solid;
+      position: relative; overflow: hidden;
+    }
+    .ai-box::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    }
+    .ai-box.good { border-color: rgba(16,232,152,0.25); background: rgba(16,232,152,0.06); }
+    .ai-box.good::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+    .ai-box.warn { border-color: rgba(251,185,36,0.25); background: rgba(251,185,36,0.06); }
+    .ai-box.warn::before { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+    .ai-box.bad { border-color: rgba(255,77,109,0.25); background: rgba(255,77,109,0.06); }
+    .ai-box.bad::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+    .ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .ai-icon { font-size: 18px; }
+    .ai-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+    .ai-body { font-size: 12px; line-height: 1.7; color: var(--text); }
+    .ai-tips { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .ai-tip { font-size: 11px; color: var(--muted); padding-left: 14px; position: relative; }
+    .ai-tip::before { content: '→'; position: absolute; left: 0; color: var(--gold); }
+
+    /* CHART */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* PRICE SCENARIOS */
+    .scenario-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .scenario {
+      background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .scenario:hover { border-color: var(--gold); background: var(--gold-dim); }
+    .scenario.active { border-color: var(--gold); background: var(--gold-dim); }
+    .scenario-price { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: var(--gold); }
+    .scenario-margin { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .scenario-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+    /* PLACEHOLDER STATE */
+    .placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 20px; text-align: center; gap: 12px;
+      opacity: 0.4;
+    }
+    .placeholder-icon { font-size: 36px; }
+    .placeholder p { font-size: 12px; color: var(--muted); max-width: 200px; line-height: 1.6; }
+
+    /* DIVIDER */
+    .divider {
+      height: 1px; background: var(--border); margin: 16px 0;
+    }
+
+    /* SECTION LABEL */
+    .section-sep {
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); display: flex; align-items: center; gap: 10px; margin: 8px 0;
+    }
+    .section-sep::before, .section-sep::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      background: var(--green); color: #000; padding: 12px 20px;
+      border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 13px; transform: translateY(80px); opacity: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .metrics-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 520px) {
+      .input-row { grid-template-columns: 1fr; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+      .scenario-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ANIMATION */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate { animation: fadeUp 0.4s ease forwards; }
+
+    /* NUMBER INPUT spinner hide */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">M</div>
+      <div class="logo-text">
+        <h1>MarocCalc Pro</h1>
+        <p>RISK-ADJUSTED PRICING ENGINE · MOROCCO</p>
+      </div>
+    </div>
+    <div class="header-badge">Auto-Entrepreneur Ready</div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- LEFT: INPUTS -->
+    <div class="card" style="position:sticky;top:20px;">
+      <div class="card-title"><span>⚙</span> Product Parameters</div>
+
+      <div class="input-group">
+        <div class="section-sep">Cost Structure</div>
+
+        <div class="input-row">
+          <div class="field">
+            <label>Product Cost</label>
+            <div class="field-wrap">
+              <input type="number" id="cost" value="80" min="0" step="1" />
+              <span class="field-unit">MAD</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Selling Price</label>
+            <div class="field-wrap">
+              <input type="number" id="price" value="250" min="0" step="1" />
+              <span class="field-unit">MAD</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
+            <label>Shipping Fee</label>
+            <div class="field-wrap">
+              <input type="number" id="shipping" value="25" min="0" step="1" />
+              <span class="field-unit">MAD</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Ad Spend / Sale</label>
+            <div class="field-wrap">
+              <input type="number" id="ads" value="30" min="0" step="1" />
+              <span class="field-unit">MAD</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-sep">Risk Factors</div>
+
+        <div class="field">
+          <label>Return Rate (Livrabilité) — <span id="returnVal">20</span>%</label>
+          <input type="range" id="returnRate" min="0" max="80" value="20" step="1" oninput="document.getElementById('returnVal').textContent=this.value; calculate();" />
+          <div class="range-labels"><span>0% Perfect</span><span>80% Critical</span></div>
+        </div>
+
+        <div class="field">
+          <label>COD Return Cost</label>
+          <div class="field-wrap">
+            <input type="number" id="returnCost" value="15" min="0" step="1" />
+            <span class="field-unit">MAD</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Tax Regime</label>
+          <div class="field-wrap">
+            <select id="taxRate">
+              <option value="0.01">Auto-Entrepreneur — 1% (Trade/Industry)</option>
+              <option value="0.04">Auto-Entrepreneur — 4% (Services)</option>
+              <option value="0.20">VAT — 20%</option>
+              <option value="0">No Tax</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Monthly Volume (units)</label>
+          <div class="field-wrap">
+            <input type="number" id="volume" value="100" min="1" step="1" />
+            <span class="field-unit">pcs</span>
+          </div>
+        </div>
+
+        <button class="calc-btn" onclick="calculate()">⚡ Calculate Risk-Adjusted Profit</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULTS -->
+    <div class="right-col">
+
+      <!-- METRICS -->
+      <div class="card" id="metricsCard">
+        <div class="card-title"><span>📊</span> Key Metrics</div>
+        <div id="metricsContent">
+          <div class="placeholder">
+            <div class="placeholder-icon">🔢</div>
+            <p>Fill in the parameters and click Calculate to see your risk-adjusted metrics.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="card">
+        <div class="card-title"><span>📈</span> Price vs Profit Analysis</div>
+        <div class="chart-wrap">
+          <canvas id="profitChart"></canvas>
+        </div>
+      </div>
+
+      <!-- BREAKEVEN + SENSITIVITY (2 cols) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" id="analysisGrid">
+        <div class="card">
+          <div class="card-title"><span>⚖</span> Break-Even Matrix</div>
+          <div id="breakevenContent">
+            <div class="placeholder" style="padding:20px 10px;">
+              <p>Calculate first to see break-even data.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>∂</span> Sensitivity Analysis</div>
+          <div id="sensitivityContent">
+            <div class="placeholder" style="padding:20px 10px;">
+              <p>Partial derivative analysis will appear here.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRICE SCENARIOS -->
+      <div class="card">
+        <div class="card-title"><span>🎯</span> Price Scenarios</div>
+        <div class="scenario-grid" id="scenariosContent">
+          <div class="placeholder" style="grid-column:1/-1;padding:20px 10px;">
+            <p>Scenarios will be generated after calculation.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI ADVICE -->
+      <div id="aiCard">
+        <div class="placeholder" style="opacity:0.3;padding:20px;">
+          <div class="placeholder-icon">🤖</div>
+          <p>AI strategic advice will appear after calculation.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Calculation complete</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   MATH ENGINE — Risk-Adjusted Pricing
+   Uses linear algebra & partial derivatives
+═══════════════════════════════════════════════ */
+
+let chartInstance = null;
+
+function calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
+  // Risk adjustment vectors (Linear Algebra approach)
+  // Revenue vector adjusted for return rate
+  const R = returnRate / 100;  // return probability scalar
+
+  // Expected revenue per order dispatched
+  // = price * (1 - R) + 0 * R  (returned orders get 0 revenue)
+  const expectedRevenue = price * (1 - R);
+
+  // Cost vector (always paid per dispatch)
+  // C = [cost, shipping, ads, returnHandling, tax]
+  const costProduct  = cost;
+  const costShipping = shipping;            // paid on dispatch always
+  const costAds      = ads;
+  const costReturn   = returnCost * R;      // expected return handling cost
+  const taxBase      = expectedRevenue;
+  const costTax      = taxBase * taxRate;
+
+  // Total cost per order dispatched (dot product of cost vector with unit vector)
+  const totalCost = costProduct + costShipping + costAds + costReturn + costTax;
+
+  // Net profit per dispatched order
+  const profitPerOrder = expectedRevenue - totalCost;
+
+  // Break-even price: solve expectedRevenue = totalCost for price
+  // price*(1-R) = cost + shipping + ads + returnCost*R + price*(1-R)*taxRate
+  // price*(1-R) - price*(1-R)*taxRate = cost + shipping + ads + returnCost*R
+  // price*(1-R)*(1 - taxRate) = fixedCosts
+  const fixedCosts = cost + shipping + ads + returnCost * R;
+  const breakEvenPrice = fixedCosts / ((1 - R) * (1 - taxRate));
+
+  // Monthly figures
+  const dispatchVolume = volume;
+  const deliveredVolume = volume * (1 - R);
+  const monthlyRevenue = deliveredVolume * price;
+  const monthlyProfit = profitPerOrder * volume;
+  const monthlyCosts = totalCost * volume;
+
+  // ROI
+  const roi = totalCost > 0 ? (profitPerOrder / (cost + shipping + ads)) * 100 : 0;
+
+  // Margin
+  const margin = expectedRevenue > 0 ? (profitPerOrder / expectedRevenue) * 100 : 0;
+
+  return {
+    profitPerOrder, expectedRevenue, totalCost,
+    breakEvenPrice, monthlyRevenue, monthlyProfit, monthlyCosts,
+    deliveredVolume, roi, margin,
+    costBreakdown: { costProduct, costShipping, costAds, costReturn, costTax }
+  };
+}
+
+/* Partial Derivative (Sensitivity Analysis)
+   ∂Profit/∂R = -price - returnCost + taxRate*price = -price*(1-taxRate) - returnCost
+   This tells us: for a 1% increase in return rate, profit changes by this amount (per order)
+*/
+function sensitivityAnalysis(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
+  const R = returnRate / 100;
+  const delta = 0.05; // 5% increase in returns
+  const base = calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  const perturbed = calcCore(price, cost, shipping, ads, Math.min(returnRate + 5, 80), returnCost, taxRate, volume);
+
+  // Partial derivative via finite difference
+  const dProfit_dR = (perturbed.profitPerOrder - base.profitPerOrder) / delta;
+  const monthlyImpact = (perturbed.monthlyProfit - base.monthlyProfit);
+  const priceImpact_dP = (price * 0.05) / ((1 - R) * (1 - taxRate));
+
+  // Elasticity: how sensitive is profit to a 5% price increase
+  const pricePlus5 = calcCore(price * 1.05, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  const priceElasticity = pricePlus5.monthlyProfit - base.monthlyProfit;
+
+  // Ads sensitivity
+  const adsPlus10 = calcCore(price, cost, shipping, ads * 1.10, returnRate, returnCost, taxRate, volume);
+  const adsSensitivity = adsPlus10.monthlyProfit - base.monthlyProfit;
+
+  return { dProfit_dR, monthlyImpact, priceElasticity, adsSensitivity, perturbed };
+}
+
+/* ═══════════════════════════════════════════════
+   RULE-BASED AI ADVISOR
+═══════════════════════════════════════════════ */
+function aiAdvisor(data, inputs) {
+  const { margin, profitPerOrder, breakEvenPrice, roi } = data;
+  const { returnRate, price } = inputs;
+  const priceToBreakEven = ((price - breakEvenPrice) / breakEvenPrice * 100).toFixed(1);
+
+  let status, icon, title, body, tips = [];
+
+  if (margin >= 35) {
+    status = 'good'; icon = '🚀'; title = 'Excellent Margin — Scale Aggressively';
+    body = `Your ${margin.toFixed(1)}% net margin is strong for Moroccan COD e-commerce (industry benchmark: 20-30%). You have ${priceToBreakEven}% buffer above break-even. This product is ready for aggressive scaling.`;
+    tips = [
+      'Increase ad spend by 30-40% — your CAC has room to grow.',
+      'Test higher price points (+10%) — customers with this margin rarely resist.',
+      'Prioritize Casablanca, Rabat, and Marrakech — highest delivery success zones.',
+      'Consider bundling to increase AOV and dilute return rate impact.',
+    ];
+  } else if (margin >= 20) {
+    status = 'warn'; icon = '⚡'; title = 'Viable — Optimize Before Scaling';
+    body = `Your ${margin.toFixed(1)}% margin is functional but leaves little room for error. With a ${returnRate}% return rate, one bad week of returns could turn profitable months negative.`;
+    tips = [
+      `Break-even is at ${breakEvenPrice.toFixed(0)} MAD — you're ${priceToBreakEven}% above it. Don't discount.`,
+      'Negotiate a 5-10 MAD reduction in shipping with your carrier (Amana, Jumia Express, etc.).',
+      returnRate > 25 ? 'Your return rate is HIGH — add product video, size guide, or live chat to reduce it.' : 'Return rate is acceptable — focus on reducing ad spend per sale.',
+      'Cap monthly ad budget until you optimize the return rate below 20%.',
+    ];
+  } else if (margin >= 5) {
+    status = 'warn'; icon = '⚠️'; title = 'Danger Zone — Restructure Required';
+    body = `${margin.toFixed(1)}% margin is dangerously thin. A slight increase in returns, shipping costs, or ad CPM will make this product loss-making. Do NOT scale without restructuring.`;
+    tips = [
+      `Raise the price to at least ${(breakEvenPrice * 1.25).toFixed(0)} MAD for a safe 25% margin.`,
+      `Return rate of ${returnRate}% is costing you ${(data.costBreakdown.costReturn).toFixed(1)} MAD/order — critical to fix.`,
+      'Test a higher price point immediately before spending more on ads.',
+      'Consider if this product works better on Jumia/Glovo (marketplace, lower acquisition cost).',
+    ];
+  } else {
+    status = 'bad'; icon = '🔴'; title = 'Loss-Making — Stop & Restructure';
+    body = `This product is currently unprofitable at these parameters. Every order dispatched loses you ${Math.abs(profitPerOrder).toFixed(1)} MAD. Scaling will only amplify losses.`;
+    tips = [
+      `Minimum break-even price is ${breakEvenPrice.toFixed(0)} MAD — current price is ${Math.round(price)} MAD (${Math.abs(priceToBreakEven)}% below break-even).`,
+      'STOP all paid advertising immediately.',
+      'Negotiate product cost down by 20%+ or find an alternative supplier.',
+      `Return rate at ${returnRate}% is adding ${(data.costBreakdown.costReturn * 100 / (data.totalCost || 1)).toFixed(0)}% to your cost structure — test new creatives.`,
+    ];
+  }
+
+  // Add Moroccan-specific insights
+  if (returnRate > 40) tips.push('⚡ Livrabilité below 60% is considered critical in Moroccan COD market — verify targeting quality.');
+  if (inputs.price / inputs.cost < 2) tips.push('Price-to-cost ratio below 2x is very risky for COD — industry standard is 2.5x–4x.');
+
+  return { status, icon, title, body, tips };
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN CALCULATE FUNCTION
+═══════════════════════════════════════════════ */
+function calculate() {
+  const price      = +document.getElementById('price').value || 0;
+  const cost       = +document.getElementById('cost').value || 0;
+  const shipping   = +document.getElementById('shipping').value || 0;
+  const ads        = +document.getElementById('ads').value || 0;
+  const returnRate = +document.getElementById('returnRate').value || 0;
+  const returnCost = +document.getElementById('returnCost').value || 0;
+  const taxRate    = +document.getElementById('taxRate').value || 0;
+  const volume     = +document.getElementById('volume').value || 100;
+
+  const data = calcCore(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  const sens = sensitivityAnalysis(price, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  const ai   = aiAdvisor(data, { price, cost, returnRate, volume });
+
+  renderMetrics(data);
+  renderBreakeven(data, { price, cost, shipping, ads, returnRate, returnCost, taxRate });
+  renderSensitivity(sens, data, volume);
+  renderScenarios(cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  renderAI(ai);
+  renderChart(cost, shipping, ads, returnRate, returnCost, taxRate, price);
+
+  showToast();
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════════ */
+function renderMetrics(d) {
+  const isProfit = d.profitPerOrder > 0;
+  const marginClass = d.margin >= 30 ? 'green' : d.margin >= 15 ? 'gold' : 'red';
+  const profitClass = isProfit ? 'positive' : 'negative';
+
+  document.getElementById('metricsContent').innerHTML = `
+    <div class="metrics-grid animate">
+      <div class="metric ${isProfit ? 'positive' : 'negative'}">
+        <div class="metric-label">Net Profit / Order</div>
+        <div class="metric-value ${isProfit ? 'green' : 'red'}">${d.profitPerOrder.toFixed(2)} <small style="font-size:13px">MAD</small></div>
+        <div class="metric-sub">After returns & tax</div>
+      </div>
+      <div class="metric ${d.margin >= 20 ? 'positive' : 'negative'}">
+        <div class="metric-label">Net Margin</div>
+        <div class="metric-value ${marginClass}">${d.margin.toFixed(1)}%</div>
+        <div class="metric-sub">On delivered revenue</div>
+      </div>
+      <div class="metric warning">
+        <div class="metric-label">Break-Even Price</div>
+        <div class="metric-value gold">${d.breakEvenPrice.toFixed(0)} <small style="font-size:13px">MAD</small></div>
+        <div class="metric-sub">Min viable price</div>
+      </div>
+      <div class="metric ${d.roi >= 30 ? 'positive' : 'negative'}">
+        <div class="metric-label">ROI</div>
+        <div class="metric-value ${d.roi >= 30 ? 'green' : 'red'}">${d.roi.toFixed(1)}%</div>
+        <div class="metric-sub">Return on investment</div>
+      </div>
+      <div class="metric ${d.monthlyProfit >= 0 ? 'positive' : 'negative'}" style="grid-column:span 2">
+        <div class="metric-label">Monthly P&L (${Math.round(d.deliveredVolume)} deliveries / total dispatched)</div>
+        <div class="metric-value ${d.monthlyProfit >= 0 ? 'green' : 'red'}" style="font-size:28px">${d.monthlyProfit.toFixed(0)} MAD</div>
+        <div class="metric-sub">Revenue: ${d.monthlyRevenue.toFixed(0)} MAD — Costs: ${d.monthlyCosts.toFixed(0)} MAD</div>
+      </div>
+    </div>`;
+}
+
+function renderBreakeven(d, inp) {
+  const { cost, shipping, ads, returnRate, returnCost, taxRate } = inp;
+  const R = returnRate / 100;
+  const cb = d.costBreakdown;
+
+  document.getElementById('breakevenContent').innerHTML = `
+    <table class="be-table animate">
+      <tr><th>Component</th><th class="val">MAD</th><th class="val">%</th></tr>
+      <tr><td>Product Cost</td><td class="val">${cb.costProduct.toFixed(2)}</td><td class="val">${(cb.costProduct/d.totalCost*100).toFixed(1)}%</td></tr>
+      <tr><td>Shipping</td><td class="val">${cb.costShipping.toFixed(2)}</td><td class="val">${(cb.costShipping/d.totalCost*100).toFixed(1)}%</td></tr>
+      <tr><td>Ad Spend</td><td class="val">${cb.costAds.toFixed(2)}</td><td class="val">${(cb.costAds/d.totalCost*100).toFixed(1)}%</td></tr>
+      <tr><td>Return Risk (E)</td><td class="val" style="color:var(--red)">${cb.costReturn.toFixed(2)}</td><td class="val">${(cb.costReturn/d.totalCost*100).toFixed(1)}%</td></tr>
+      <tr><td>Tax</td><td class="val" style="color:var(--gold)">${cb.costTax.toFixed(2)}</td><td class="val">${(cb.costTax/d.totalCost*100).toFixed(1)}%</td></tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td><strong>Total Cost</strong></td>
+        <td class="val"><strong>${d.totalCost.toFixed(2)}</strong></td>
+        <td class="val"><strong>100%</strong></td>
+      </tr>
+      <tr><td colspan="3"><div class="divider"></div></td></tr>
+      <tr><td>Break-Even</td><td class="val" style="color:var(--gold)">${d.breakEvenPrice.toFixed(1)}</td><td class="val">—</td></tr>
+      <tr><td>Your Price</td><td class="val" style="color:var(--green)">${inp.price.toFixed(1)}</td><td class="val">—</td></tr>
+      <tr><td>Safety Buffer</td>
+        <td class="val" style="color:${inp.price > d.breakEvenPrice?'var(--green)':'var(--red)'}">
+          ${(inp.price - d.breakEvenPrice).toFixed(1)}
+        </td>
+        <td class="val">${((inp.price - d.breakEvenPrice)/d.breakEvenPrice*100).toFixed(1)}%</td>
+      </tr>
+    </table>`;
+}
+
+function renderSensitivity(s, d, volume) {
+  const fmt = (n) => (n >= 0 ? '+' : '') + n.toFixed(2);
+  const fmtM = (n) => (n >= 0 ? '+' : '') + n.toFixed(0);
+
+  document.getElementById('sensitivityContent').innerHTML = `
+    <div class="animate">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;">
+        How a 5% shock affects your business
+      </div>
+      <div class="sensitivity-row">
+        <div>
+          <div class="sensitivity-label">∂Profit/∂ReturnRate</div>
+          <div style="font-size:10px;color:var(--muted)">+5% more returns</div>
+        </div>
+        <div class="sensitivity-delta" style="color:${s.monthlyImpact<0?'var(--red)':'var(--green)'}">
+          ${fmtM(s.monthlyImpact)} MAD/mo
+        </div>
+      </div>
+      <div class="sensitivity-row">
+        <div>
+          <div class="sensitivity-label">∂Profit/∂Price</div>
+          <div style="font-size:10px;color:var(--muted)">+5% price increase</div>
+        </div>
+        <div class="sensitivity-delta" style="color:var(--green)">
+          ${fmtM(s.priceElasticity)} MAD/mo
+        </div>
+      </div>
+      <div class="sensitivity-row">
+        <div>
+          <div class="sensitivity-label">∂Profit/∂AdSpend</div>
+          <div style="font-size:10px;color:var(--muted)">+10% ad spend</div>
+        </div>
+        <div class="sensitivity-delta" style="color:var(--red)">
+          ${fmtM(s.adsSensitivity)} MAD/mo
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:10px;color:var(--muted);line-height:1.6;">
+        Grad vector: [${fmtM(s.monthlyImpact)}, ${fmtM(s.priceElasticity)}, ${fmtM(s.adsSensitivity)}]<br>
+        Steepest ascent → raise price first, then cut returns.
+      </div>
+    </div>`;
+}
+
+function renderScenarios(cost, shipping, ads, returnRate, returnCost, taxRate, volume) {
+  const priceBase = calcCore(250, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+  const prices = [
+    { p: cost * 2.0, label: '2x Cost', color: 'var(--red)' },
+    { p: cost * 2.5, label: '2.5x Cost', color: 'var(--gold)' },
+    { p: cost * 3.0, label: '3x Cost (Rec)', color: 'var(--green)' },
+    { p: cost * 3.5, label: '3.5x Cost', color: 'var(--blue)' },
+    { p: cost * 4.0, label: '4x Premium', color: 'var(--green)' },
+    { p: +document.getElementById('price').value, label: 'Your Price', color: 'var(--gold)' },
+  ];
+
+  document.getElementById('scenariosContent').innerHTML = prices.map((s, i) => {
+    const d = calcCore(s.p, cost, shipping, ads, returnRate, returnCost, taxRate, volume);
+    const isActive = i === 5;
+    return `
+      <div class="scenario ${isActive ? 'active' : ''}" onclick="applyScenario(${s.p.toFixed(0)})">
+        <div class="scenario-price" style="color:${d.profitPerOrder > 0 ? s.color : 'var(--red)'}">${s.p.toFixed(0)} MAD</div>
+        <div class="scenario-margin" style="color:${d.margin >= 20 ? 'var(--green)' : 'var(--red)'}">${d.margin.toFixed(1)}% margin</div>
+        <div class="scenario-label">${s.label}</div>
+      </div>`;
+  }).join('');
+}
+
+function applyScenario(price) {
+  document.getElementById('price').value = price;
+  calculate();
+}
+
+function renderAI(ai) {
+  const tipsHTML = ai.tips.map(t => `<div class="ai-tip">${t}</div>`).join('');
+  document.getElementById('aiCard').innerHTML = `
+    <div class="ai-box ${ai.status} animate">
+      <div class="ai-header">
+        <div class="ai-icon">${ai.icon}</div>
+        <div class="ai-title">${ai.title}</div>
+      </div>
+      <div class="ai-body">${ai.body}</div>
+      <div class="ai-tips">${tipsHTML}</div>
+    </div>`;
+}
+
+function renderChart(cost, shipping, ads, returnRate, returnCost, taxRate, currentPrice) {
+  const ctx = document.getElementById('profitChart').getContext('2d');
+  const minP = Math.max(cost, 50);
+  const maxP = cost * 5;
+  const step = (maxP - minP) / 60;
+  const labels = [], profits = [], margins = [];
+
+  for (let p = minP; p <= maxP; p += step) {
+    const d = calcCore(p, cost, shipping, ads, returnRate, returnCost, taxRate, 1);
+    labels.push(p.toFixed(0));
+    profits.push(+d.profitPerOrder.toFixed(2));
+    margins.push(+d.margin.toFixed(2));
+  }
+
+  const beIdx = profits.findIndex(v => v >= 0);
+  const cpIdx = Math.round((currentPrice - minP) / step);
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Profit / Order (MAD)',
+          data: profits,
+          borderColor: '#10E898',
+          backgroundColor: (ctx) => {
+            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+            g.addColorStop(0, 'rgba(16,232,152,0.2)');
+            g.addColorStop(1, 'rgba(16,232,152,0)');
+            return g;
+          },
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 2,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Margin %',
+          data: margins,
+          borderColor: '#FBB924',
+          backgroundColor: 'transparent',
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#6B7280', font: { family: 'DM Mono', size: 10 }, boxWidth: 12
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(6,8,16,0.9)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#E8EAF0',
+          bodyColor: '#6B7280',
+          titleFont: { family: 'Syne', weight: '700' },
+          bodyFont: { family: 'DM Mono' },
+          callbacks: {
+            title: (items) => `Price: ${items[0].label} MAD`,
+            label: (item) => ` ${item.dataset.label}: ${item.raw}${item.datasetIndex === 1 ? '%' : ' MAD'}`
+          }
+        },
+        annotation: {}
+      },
+      scales: {
+        x: {
+          ticks: { color: '#374151', font: { size: 9, family: 'DM Mono' }, maxTicksLimit: 8 },
+          grid: { color: 'rgba(255,255,255,0.03)' }
+        },
+        y: {
+          position: 'left',
+          ticks: { color: '#10E898', font: { size: 9 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y1: {
+          position: 'right',
+          ticks: { color: '#FBB924', font: { size: 9 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Auto-calculate on input changes
+document.querySelectorAll('input[type=number], select').forEach(el => {
+  el.addEventListener('input', () => calculate());
+});
+
+// Initial render
+window.addEventListener('DOMContentLoaded', () => calculate());
+</script>
+</body>
+</html>
